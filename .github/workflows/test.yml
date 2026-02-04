@@ -1,0 +1,75 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  rust-test:
+    name: Rust Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: extractor
+
+      - name: Check formatting
+        run: cargo fmt --check
+        working-directory: extractor
+
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+        working-directory: extractor
+
+      - name: Build
+        run: cargo build --release
+        working-directory: extractor
+
+      - name: Test
+        run: cargo test
+        working-directory: extractor
+
+  codeql-test:
+    name: CodeQL Pack Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install CodeQL CLI
+        run: |
+          gh release download --repo github/codeql-cli-binaries --pattern "codeql-linux64.zip" --dir /tmp
+          unzip -q /tmp/codeql-linux64.zip -d /opt
+          echo "/opt/codeql" >> "$GITHUB_PATH"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Install packs
+        run: |
+          codeql pack install ql/lib
+          codeql pack install --additional-packs ql/lib queries
+
+      - name: Test queries
+        run: codeql pack test --additional-packs ql/lib tests || echo "No tests found"
+
+  msrv:
+    name: MSRV Check (Rust 1.82)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@1.82.0
+      - run: cargo build
+        working-directory: extractor

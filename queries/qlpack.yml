@@ -1,0 +1,7 @@
+name: lucasallan/solidity-queries
+version: 0.0.1
+library: false
+dependencies:
+  lucasallan/solidity-all: "*"
+groups:
+  - solidity

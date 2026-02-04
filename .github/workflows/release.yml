@@ -1,0 +1,115 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  create-binaries:
+    name: Create ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: linux-x64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            name: linux-arm64
+            use_cross: true
+          - target: x86_64-apple-darwin
+            os: macos-15
+            name: macos-x64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            name: macos-arm64
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross
+        if: matrix.use_cross
+        run: cargo install cross
+
+      - name: Compile (native)
+        if: ${{ !matrix.use_cross }}
+        run: cargo build --release --target ${{ matrix.target }}
+        working-directory: extractor
+
+      - name: Compile (cross)
+        if: matrix.use_cross
+        run: cross build --release --target ${{ matrix.target }}
+        working-directory: extractor
+
+      - name: Package
+        run: |
+          mkdir -p output
+          cp target/${{ matrix.target }}/release/codeql-extractor-solidity output/
+          tar -czvf codeql-extractor-solidity-${{ matrix.name }}.tar.gz -C output .
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: codeql-extractor-solidity-${{ matrix.name }}.tar.gz
+
+  release:
+    name: Create Release
+    needs: create-binaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: artifacts
+
+      - name: Create checksums
+        run: |
+          cd artifacts
+          sha256sum */*.tar.gz > checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/**/*.tar.gz
+            artifacts/checksums.txt
+          generate_release_notes: true
+
+  publish-packs:
+    name: Publish CodeQL Packs
+    needs: create-binaries
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install CodeQL
+        run: gh extensions install github/gh-codeql
+
+      - name: Publish library pack
+        run: gh codeql pack publish ql/lib
+
+      - name: Install query pack dependencies
+        run: gh codeql pack install queries
+
+      - name: Publish query pack
+        run: gh codeql pack publish queries

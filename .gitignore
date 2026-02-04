@@ -1,0 +1,30 @@
+# Rust
+target/
+**/*.rs.bk
+
+# CodeQL
+.cache/
+.codeql/
+*.bqrs
+*.sarif
+databases/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+*.log
+
+# Claude / AI
+.claude/
+.opencode/
+plans/
+AGENTS.md
+CLAUDE.md
+release-manifest.json

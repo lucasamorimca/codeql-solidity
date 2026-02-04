@@ -1,0 +1,46 @@
+[package]
+name = "codeql-extractor-solidity"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+description = "CodeQL extractor for Solidity smart contracts"
+license = "Apache-2.0"
+repository = "https://github.com/lucasallan/codeql-solidity"
+authors = ["Lucas Amorim"]
+
+[[bin]]
+name = "codeql-extractor-solidity"
+path = "src/main.rs"
+
+[dependencies]
+# Tree-sitter parsing
+# Use the latest version compatible with tree-sitter-solidity
+tree-sitter = "0.26"
+tree-sitter-solidity = { git = "https://github.com/JoranHonig/tree-sitter-solidity.git" }
+
+# CLI
+clap = { version = "4", features = ["derive", "env"] }
+
+# Parallelism
+rayon = "1.8"
+
+# Compression
+flate2 = "1.0"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Hashing for deterministic labels
+sha2 = "0.10"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# File system utilities
+walkdir = "2"
+
+# Error handling
+anyhow = "1"
+thiserror = "2"

@@ -1,0 +1,7 @@
+name: lucasallan/solidity-all
+version: 0.0.1
+library: true
+extractor: solidity
+dbscheme: solidity.dbscheme
+groups:
+  - solidity
