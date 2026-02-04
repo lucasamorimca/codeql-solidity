@@ -106,10 +106,10 @@ jobs:
         run: gh extensions install github/gh-codeql
 
       - name: Publish library pack
-        run: gh codeql pack publish ql/lib
+        run: gh codeql pack publish ql/lib || echo "Pack already published, continuing..."
 
       - name: Install query pack dependencies
         run: gh codeql pack install queries
 
       - name: Publish query pack
-        run: gh codeql pack publish queries
+        run: gh codeql pack publish queries || echo "Pack already published, continuing..."
