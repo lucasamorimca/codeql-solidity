@@ -330,3 +330,89 @@ contract CallbackReentrancy {
         return this.onERC721Received.selector;
     }
 }
+
+// ============================================
+// INTERPROCEDURAL CEI VIOLATIONS
+// ============================================
+
+// VULNERABLE: Helper function writes to mapping after external call
+contract InterproceduralCEI1 {
+    mapping(address => uint256) public balances;
+
+    function _updateBalance(address user) internal {
+        balances[user] = 0;
+    }
+
+    function withdraw() external {
+        uint256 amount = balances[msg.sender];
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success);
+        _updateBalance(msg.sender); // State mod hidden in callee
+    }
+}
+
+// VULNERABLE: Two-level call chain — A calls B, B modifies state
+contract InterproceduralCEI2 {
+    mapping(address => uint256) public balances;
+
+    function _clearBalance(address user) internal {
+        balances[user] = 0;
+    }
+
+    function _processWithdrawal(address user) internal {
+        _clearBalance(user);
+    }
+
+    function withdraw() external {
+        uint256 amount = balances[msg.sender];
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success);
+        _processWithdrawal(msg.sender); // 2-hop state mod
+    }
+}
+
+// VULNERABLE: Array mutation via .pop() in helper
+contract InterproceduralCEI3 {
+    address[] public recipients;
+
+    function _removeLastRecipient() internal {
+        recipients.pop();
+    }
+
+    function withdrawAndCleanup() external {
+        (bool success, ) = msg.sender.call{value: 1 ether}("");
+        require(success);
+        _removeLastRecipient(); // Array pop in callee
+    }
+}
+
+// VULNERABLE: counter++ in helper
+contract InterproceduralCEI4 {
+    uint256 public withdrawCount;
+
+    function _incrementCounter() internal {
+        withdrawCount++;
+    }
+
+    function withdraw() external {
+        (bool success, ) = msg.sender.call{value: 1 ether}("");
+        require(success);
+        _incrementCounter(); // Update expression in callee
+    }
+}
+
+// SAFE: State mod BEFORE external call via helper (CEI order preserved)
+contract InterproceduralSafe {
+    mapping(address => uint256) public balances;
+
+    function _clearBalance(address user) internal {
+        balances[user] = 0;
+    }
+
+    function withdraw() external {
+        uint256 amount = balances[msg.sender];
+        _clearBalance(msg.sender); // State mod first
+        (bool success, ) = msg.sender.call{value: amount}("");
+        require(success);
+    }
+}
