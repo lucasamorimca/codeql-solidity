@@ -25,7 +25,10 @@ predicate localFlowStep(Node nodeFrom, Node nodeTo) {
   ssaFlowStep(nodeFrom, nodeTo) or
   expressionFlowStep(nodeFrom, nodeTo) or
   returnFlowStep(nodeFrom, nodeTo) or
-  storageAliasFlowStep(nodeFrom, nodeTo)
+  storageAliasFlowStep(nodeFrom, nodeTo) or
+  stateVariableFlowStep(nodeFrom, nodeTo) or
+  argumentFlowStep(nodeFrom, nodeTo) or
+  callResultFlowStep(nodeFrom, nodeTo)
 }
 
 /**
@@ -420,15 +423,16 @@ predicate stateVariableFlowStep(Node nodeFrom, Node nodeTo) {
  */
 predicate storageAliasFlowStep(Node nodeFrom, Node nodeTo) {
   // Array element write to array element read (conservative: any index may alias)
+  // Storage is global — cross-function aliasing within same contract is valid
   exists(Solidity::AssignmentExpression writeAssign, Solidity::ArrayAccess writeAccess,
          Solidity::ArrayAccess readAccess |
     writeAssign.getLeft() = writeAccess and
     nodeFrom.asExpr() = writeAssign.getRight() and
     nodeTo.asExpr() = readAccess and
-    // Same base array (by name)
+    // Same base array (by name) within same contract
     getArrayBaseName(writeAccess) = getArrayBaseName(readAccess) and
-    // Write must precede read (in same function, simplified)
-    writeAssign.getParent+() = readAccess.getParent+()
+    writeAssign.getParent+().(Solidity::ContractDeclaration) =
+      readAccess.getParent+().(Solidity::ContractDeclaration)
   )
   or
   // Mapping element write to mapping element read
@@ -437,11 +441,11 @@ predicate storageAliasFlowStep(Node nodeFrom, Node nodeTo) {
     writeAssign.getLeft() = writeAccess and
     nodeFrom.asExpr() = writeAssign.getRight() and
     nodeTo.asExpr() = readAccess and
-    // Same mapping (by name)
+    // Same mapping (by name) within same contract
     getMappingBaseName(writeAccess) = getMappingBaseName(readAccess) and
     getMappingBaseName(writeAccess) != "" and
-    // Write must be visible to read
-    writeAssign.getParent+() = readAccess.getParent+()
+    writeAssign.getParent+().(Solidity::ContractDeclaration) =
+      readAccess.getParent+().(Solidity::ContractDeclaration)
   )
 }
 

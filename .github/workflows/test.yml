@@ -63,7 +63,15 @@ jobs:
           codeql pack install --additional-packs ql/lib queries
 
       - name: Test queries
-        run: codeql pack test --additional-packs ql/lib tests || echo "No tests found"
+        run: |
+          if ! codeql pack test --additional-packs ql/lib tests 2>&1 | tee test-output.log; then
+            if grep -q "No tests found\|Could not find any tests" test-output.log; then
+              echo "::warning::No CodeQL tests found in tests/"
+            else
+              echo "::error::CodeQL query tests failed"
+              exit 1
+            fi
+          fi
 
   msrv:
     name: MSRV Check (Rust 1.82)

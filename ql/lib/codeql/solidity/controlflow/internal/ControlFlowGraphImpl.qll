@@ -576,8 +576,11 @@ predicate successorWithCompletion(CfgNode pred, CfgNode succ, Completion c) {
   // Control flow between statements
   statementSuccessor(pred, succ, c)
   or
-  // Function entry
+  // Function entry (including modifier expansion)
   functionEntrySuccessor(pred, succ, c)
+  or
+  // Modifier placeholder `_;` flow to/from function body
+  modifierPlaceholderSuccessor(pred, succ, c)
 }
 
 /**
@@ -848,12 +851,198 @@ private predicate tryStatementSuccessor(CfgNode pred, CfgNode succ, Completion c
 
 /**
  * Function entry control flow.
+ *
+ * For functions with chained modifiers (e.g., `function foo() mod0 mod1 { body }`),
+ * the CFG flows through modifier bodies in source order:
+ *   entry → mod0_pre → mod0's `_;` → mod1_pre → mod1's `_;` → body
+ *   body → mod1_post → mod0_post → exit
+ *
+ * For functions without modifiers, flow goes directly to function body.
  */
 private predicate functionEntrySuccessor(CfgNode pred, CfgNode succ, Completion c) {
   exists(EntryNode entry |
     pred = entry and
     c instanceof NormalCompletion and
-    succ = first(entry.getBody())
+    (
+      // Function with modifiers: flow to first modifier's body (source order)
+      exists(Solidity::ModifierDefinition modDef |
+        nthResolvedModifier(entry, 0, _, modDef) and
+        succ = first(modDef.getBody())
+      )
+      or
+      // Function without resolved modifiers: flow directly to function body
+      not hasResolvedModifier(entry) and
+      succ = first(entry.getBody())
+    )
+  )
+}
+
+/**
+ * Resolves a modifier invocation to its definition within the contract hierarchy.
+ */
+private predicate modifierInvocationResolves(
+  Solidity::ModifierInvocation invoc,
+  Solidity::ModifierDefinition modDef
+) {
+  exists(Solidity::ContractDeclaration contract |
+    invoc.getParent+() = contract and
+    (
+      // Modifier defined in same contract
+      modDef.getParent+() = contract
+      or
+      // Modifier defined in base contract
+      exists(Solidity::InheritanceSpecifier spec |
+        spec.getParent() = contract and
+        modDef.getParent+() = spec.getAncestor().(Solidity::ContractDeclaration)
+      )
+    ) and
+    invoc.getValue() = modDef.getName().(Solidity::AstNode).getValue()
+  )
+}
+
+/**
+ * Holds if modifier invocation `a` appears before `b` in source order.
+ */
+private predicate modifierSourceBefore(
+  Solidity::ModifierInvocation a,
+  Solidity::ModifierInvocation b
+) {
+  a.getParent() = b.getParent() and
+  (
+    a.getLocation().getStartLine() < b.getLocation().getStartLine()
+    or
+    a.getLocation().getStartLine() = b.getLocation().getStartLine() and
+    a.getLocation().getStartColumn() < b.getLocation().getStartColumn()
+  )
+}
+
+/**
+ * Gets the n-th resolved modifier (0-based, source order) on `funcLike`.
+ * Position is determined by counting how many other resolved modifiers precede it.
+ */
+private predicate nthResolvedModifier(
+  EntryNode funcLike,
+  int pos,
+  Solidity::ModifierInvocation modInvoc,
+  Solidity::ModifierDefinition modDef
+) {
+  modInvoc.getParent() = funcLike and
+  modifierInvocationResolves(modInvoc, modDef) and
+  pos =
+    count(Solidity::ModifierInvocation prior |
+      prior.getParent() = funcLike and
+      modifierInvocationResolves(prior, _) and
+      modifierSourceBefore(prior, modInvoc)
+    )
+}
+
+/** Gets the number of resolved modifiers on `funcLike`. */
+private int resolvedModifierCount(EntryNode funcLike) {
+  result =
+    count(Solidity::ModifierInvocation m |
+      m.getParent() = funcLike and modifierInvocationResolves(m, _)
+    )
+}
+
+/** Holds if `funcLike` has at least one resolved modifier. */
+private predicate hasResolvedModifier(EntryNode funcLike) {
+  exists(Solidity::ModifierInvocation m |
+    m.getParent() = funcLike and modifierInvocationResolves(m, _)
+  )
+}
+
+/**
+ * Gets the CFG return target after the inner execution at modifier position `pos` completes.
+ *
+ * If the modifier at `pos` has code after its `_;`, that code's first node is the target.
+ * If `_;` is the last statement (no post-`_;` code), cascades to the parent modifier (pos-1).
+ * If pos=0 with no post-`_;` code, no target exists (function body completion is the exit).
+ */
+private predicate modifierReturnTarget(EntryNode funcLike, int pos, CfgNode target) {
+  exists(
+    Solidity::ModifierDefinition modDef,
+    Solidity::BlockStatement modBody,
+    Solidity::AstNode placeholder,
+    int placeholderIdx
+  |
+    nthResolvedModifier(funcLike, pos, _, modDef) and
+    modBody = modDef.getBody() and
+    placeholder = modBody.getChild(placeholderIdx) and
+    placeholder.getAChild*().(Solidity::Identifier).getValue() = "_" and
+    (
+      // Post-`_;` code exists: return here
+      target = first(modBody.getChild(placeholderIdx + 1))
+      or
+      // No post-`_;` code: cascade to parent modifier
+      not exists(modBody.getChild(placeholderIdx + 1)) and
+      pos > 0 and
+      modifierReturnTarget(funcLike, pos - 1, target)
+    )
+  )
+}
+
+/**
+ * Modifier placeholder (`_;`) control flow for chained modifiers.
+ *
+ * Forward: `_;` in modifier N → modifier N+1 body (or function body if N is last).
+ * Return: inner execution completion → resume after `_;` in the enclosing modifier.
+ */
+private predicate modifierPlaceholderSuccessor(CfgNode pred, CfgNode succ, Completion c) {
+  // Forward: `_;` in modifier at pos N → next modifier (N+1) or function body (if last)
+  exists(
+    Solidity::ModifierDefinition modDef,
+    EntryNode funcLike,
+    Solidity::AstNode placeholder,
+    int pos
+  |
+    placeholder.getParent+() = modDef and
+    placeholder.(Solidity::Identifier).getValue() = "_" and
+    pred = placeholder and
+    c instanceof NormalCompletion and
+    nthResolvedModifier(funcLike, pos, _, modDef) and
+    (
+      // Chain to next modifier's body
+      exists(Solidity::ModifierDefinition nextModDef |
+        nthResolvedModifier(funcLike, pos + 1, _, nextModDef) and
+        succ = first(nextModDef.getBody())
+      )
+      or
+      // Last modifier: chain to function body
+      pos = resolvedModifierCount(funcLike) - 1 and
+      succ = first(funcLike.getBody())
+    )
+  )
+  or
+  // Return: function body completion → nearest modifier with post-`_;` code
+  exists(EntryNode funcLike, int lastPos |
+    lastPos = resolvedModifierCount(funcLike) - 1 and
+    lastPos >= 0 and
+    pred = last(funcLike.getBody(), c) and
+    c instanceof NormalCompletion and
+    modifierReturnTarget(funcLike, lastPos, succ)
+  )
+  or
+  // Return: modifier N body completion → parent modifier's post-`_;` code
+  // Only when modifier N has post-`_;` code (otherwise handled by modifierReturnTarget cascade)
+  exists(
+    EntryNode funcLike,
+    Solidity::ModifierDefinition modDef,
+    Solidity::BlockStatement modBody,
+    Solidity::AstNode placeholder,
+    int placeholderIdx,
+    int pos
+  |
+    pos > 0 and
+    nthResolvedModifier(funcLike, pos, _, modDef) and
+    modBody = modDef.getBody() and
+    placeholder = modBody.getChild(placeholderIdx) and
+    placeholder.getAChild*().(Solidity::Identifier).getValue() = "_" and
+    // Only create return edge when this modifier has post-`_;` code
+    // (its body genuinely completes here, not at the `_;` placeholder)
+    exists(modBody.getChild(placeholderIdx + 1)) and
+    pred = last(modBody, c) and
+    c instanceof NormalCompletion and
+    modifierReturnTarget(funcLike, pos - 1, succ)
   )
 }
 

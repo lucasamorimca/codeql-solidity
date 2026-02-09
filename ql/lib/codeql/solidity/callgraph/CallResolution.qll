@@ -236,6 +236,71 @@ module CallResolution {
   }
 
   /**
+   * Resolves a delegatecall to target functions in the implementation contract.
+   *
+   * Delegatecall executes target code in the caller's storage context.
+   * We resolve by finding the implementation contract from:
+   * 1. The address variable's declared type (if contract-typed)
+   * 2. Known proxy patterns (implementation() getter return type)
+   *
+   * If the target address is untyped (bare address), we cannot resolve statically.
+   */
+  predicate resolveDelegateCall(
+    Solidity::CallExpression call,
+    Solidity::FunctionDefinition target
+  ) {
+    exists(Solidity::MemberExpression member |
+      member = call.getFunction().getAChild*() and
+      member.getProperty().(Solidity::AstNode).getValue() = "delegatecall" and
+      (
+        // Case 1: delegatecall on a contract-typed state variable
+        // e.g., `implementation.delegatecall(data)` where implementation is IContract type
+        exists(
+          Solidity::Identifier base,
+          Solidity::StateVariableDeclaration stateVar,
+          Solidity::ContractDeclaration callerContract,
+          Solidity::ContractDeclaration targetContract
+        |
+          base = member.getObject().getAChild*() and
+          call.getParent+() = callerContract and
+          stateVar.getParent+() = callerContract and
+          stateVar.getName().(Solidity::AstNode).getValue() = base.getValue() and
+          exists(Solidity::Identifier typeId |
+            typeId = stateVar.getType().getAChild*() and
+            getContractName(targetContract) = typeId.getValue()
+          ) and
+          target.getParent+() = targetContract
+        )
+        or
+        // Case 2: delegatecall with ABI-encoded function selector
+        // e.g., `addr.delegatecall(abi.encodeWithSelector(IFoo.bar.selector, args))`
+        // Resolve to the function referenced in the selector
+        exists(
+          Solidity::CallExpression encoderCall,
+          Solidity::MemberExpression selectorExpr,
+          Solidity::MemberExpression funcRef,
+          string funcName,
+          Solidity::ContractDeclaration targetContract
+        |
+          encoderCall = call.getChild(0) and
+          encoderCall.getFunction().(Solidity::MemberExpression).getProperty()
+              .(Solidity::AstNode)
+              .getValue() in [
+              "encodeWithSelector", "encodeCall"
+            ] and
+          selectorExpr = encoderCall.getChild(0) and
+          funcRef = selectorExpr.getObject() and
+          funcName = funcRef.getProperty().(Solidity::AstNode).getValue() and
+          getContractName(targetContract) =
+            funcRef.getObject().(Solidity::Identifier).getValue() and
+          target.getParent+() = targetContract and
+          getFunctionName(target) = funcName
+        )
+      )
+    )
+  }
+
+  /**
    * Main call resolution predicate - union of all resolution strategies.
    *
    * This predicate resolves a call expression to all possible target functions.
@@ -247,7 +312,8 @@ module CallResolution {
     resolveSuperCall(call, target) or
     resolveThisCall(call, target) or
     resolveMemberCallToInterface(call, target) or
-    resolveMemberCallFromParameter(call, target)
+    resolveMemberCallFromParameter(call, target) or
+    resolveDelegateCall(call, target)
   }
 
   /**
