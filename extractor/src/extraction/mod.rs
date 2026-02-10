@@ -105,10 +105,7 @@ pub fn run(options: ExtractOptions) -> Result<()> {
     );
 
     if error_count > 0 && error_count == files.len() {
-        anyhow::bail!(
-            "All {} files failed to extract",
-            error_count
-        );
+        anyhow::bail!("All {} files failed to extract", error_count);
     } else if error_count > 0 && error_count > files.len() / 2 {
         anyhow::bail!(
             "Too many extraction failures: {}/{} files failed",
