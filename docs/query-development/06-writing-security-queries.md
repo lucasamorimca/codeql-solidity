@@ -39,83 +39,96 @@ This guide covers patterns for writing security-focused CodeQL queries targeting
 
 ## Reentrancy Detection (CWE-841)
 
-### Basic Pattern: CEI Violation
+### State Modification Detection
+
+The `directlyModifiesState` predicate covers all mutation types:
+
+| Type | Solidity Example | AST Class |
+|------|-----------------|-----------|
+| Assignment | `balances[user] = 0` | `AssignmentExpression` |
+| Augmented assignment | `balances[user] -= amount` | `AugmentedAssignmentExpression` |
+| Update expression | `counter++` | `UpdateExpression` |
+| Delete | `delete balances[user]` | `UnaryExpression` (operator="delete") |
+| Array push/pop | `arr.push(x)`, `arr.pop()` | `CallExpression` with `MemberExpression` |
 
 ```ql
-/**
- * @name Reentrancy vulnerability
- * @description External call before state update enables reentrancy
- * @kind problem
- * @problem.severity error
- * @precision high
- * @id solidity/reentrancy
- * @tags security
- *       external/cwe/cwe-841
- */
-
-import codeql.solidity.ast.internal.TreeSitter
-import codeql.solidity.callgraph.ExternalCalls
-import codeql.solidity.controlflow.ControlFlowGraph
-
-predicate isStateWrite(Solidity::AssignmentExpression assign) {
+// Identifies state variable references
+predicate isStateVarIdentifier(Solidity::Identifier id, Solidity::ContractDeclaration contract, string varName) {
   exists(Solidity::StateVariableDeclaration sv |
-    assign.getLeft().(Solidity::Identifier).getValue() =
-      sv.getName().(Solidity::AstNode).getValue()
+    sv.getParent+() = contract and
+    varName = sv.getName().(Solidity::AstNode).getValue() and
+    id.getValue() = varName
   )
 }
 
-predicate hasReentrancyGuard(Solidity::FunctionDefinition func) {
-  exists(Solidity::AstNode mod |
-    mod.getParent() = func and
-    mod.getValue().toLowerCase().matches("%nonreentrant%")
-  )
-}
-
-from
-  Solidity::CallExpression externalCall,
-  Solidity::AssignmentExpression stateWrite,
-  Solidity::FunctionDefinition func
-where
-  ExternalCalls::isLowLevelCall(externalCall) and
-  isStateWrite(stateWrite) and
-  externalCall.getParent+() = func and
-  stateWrite.getParent+() = func and
-  // External call before state write in CFG
-  exists(ControlFlowNode callNode, ControlFlowNode writeNode |
-    callNode = externalCall and
-    writeNode = stateWrite and
-    callNode.getASuccessor+() = writeNode
-  ) and
-  not hasReentrancyGuard(func)
-select externalCall, "External call before state update in $@, potential reentrancy",
-  func, func.getName().(Solidity::AstNode).getValue()
-```
-
-### Advanced: Cross-Function Reentrancy
-
-```ql
-import codeql.solidity.callgraph.CallResolution
-
-predicate callsExternalBeforeStateWrite(Solidity::FunctionDefinition func) {
-  exists(Solidity::CallExpression ext, Solidity::AssignmentExpression write |
-    ExternalCalls::isLowLevelCall(ext) and
-    isStateWrite(write) and
-    ext.getParent+() = func and
-    write.getParent+() = func and
-    exists(ControlFlowNode c, ControlFlowNode w |
-      c = ext and w = write and c.getASuccessor+() = w
+// Detects all 5 mutation types
+predicate directlyModifiesState(Solidity::AstNode node, Solidity::ContractDeclaration contract, string varName) {
+  exists(Solidity::Identifier id |
+    isStateVarIdentifier(id, contract, varName) and
+    (
+      node.(Solidity::AssignmentExpression).getLeft() = id.getParent+()
+      or
+      node.(Solidity::AugmentedAssignmentExpression).getLeft() = id.getParent+()
+      or
+      id = node.(Solidity::UpdateExpression).getArgument().getAChild*()
+      or
+      // ... delete, push/pop cases
     )
   )
 }
-
-from Solidity::FunctionDefinition caller, Solidity::FunctionDefinition callee
-where
-  CallResolution::resolveCall(_, callee) and
-  callee.getParent+() = caller.getParent+() and
-  callsExternalBeforeStateWrite(callee) and
-  not hasReentrancyGuard(caller)
-select caller, "Calls $@ which has reentrancy pattern", callee, callee.getName().toString()
 ```
+
+### Basic Pattern: Direct CEI Violation
+
+Uses CFG reachability (`successor+`) to check if a state modification is reachable after an external call:
+
+```ql
+// Case 1: Direct state mod in same function
+exists(Solidity::AstNode mod, string varName |
+  mod.getParent+() = func and
+  directlyModifiesState(mod, contract, varName) and
+  callReachesStateMod(call, mod)  // successor+(call, mod)
+)
+```
+
+### Interprocedural CEI Violation
+
+Detects state modifications hidden in helper functions called after external calls. Uses recursive `functionModifiesState` predicate with QL fixpoint:
+
+```ql
+// Transitive state modification via callgraph
+predicate functionModifiesState(Solidity::FunctionDefinition func,
+    Solidity::ContractDeclaration contract, string varName) {
+  // Base: direct modification in function body
+  exists(Solidity::AstNode mod | mod.getParent+() = func and directlyModifiesState(mod, contract, varName))
+  or
+  // Recursive: calls internal function that modifies state
+  exists(Solidity::CallExpression internalCall, Solidity::FunctionDefinition callee |
+    internalCall.getParent+() = func and
+    isInternalCall(internalCall) and
+    CallResolution::resolveCall(internalCall, callee) and
+    functionModifiesState(callee, contract, varName)
+  )
+}
+```
+
+This catches patterns like:
+
+```solidity
+function withdraw() external {
+    (bool success, ) = msg.sender.call{value: amount}("");
+    _updateBalance(msg.sender);  // State mod hidden in callee — DETECTED
+}
+
+function _updateBalance(address user) internal {
+    balances[user] = 0;
+}
+```
+
+Key design decisions:
+- Only follows **internal** calls (excludes `.call()`, `.transfer()`, `this.func()`, contract reference calls)
+- QL fixpoint handles mutual recursion and deep call chains automatically
+- `isInternalCall` helper consolidates the 4 external call exclusion checks
 
 ## Access Control (CWE-284)
 
@@ -382,35 +395,46 @@ predicate isValidated(Solidity::AstNode node, Solidity::FunctionDefinition func)
 1. Create test fixtures with vulnerable and safe patterns
 2. Run query and verify detection
 3. Check for false positives on safe code
-4. Test edge cases
+4. Test edge cases (interprocedural, various mutation types)
 
 ```solidity
 // tests/fixtures/ReentrancyTest.sol
 
-// VULNERABLE: CEI violation
+// VULNERABLE: Direct CEI violation
 contract Vulnerable {
     mapping(address => uint) balances;
-
     function withdraw(uint amount) public {
-        require(balances[msg.sender] >= amount);
         (bool success, ) = msg.sender.call{value: amount}("");
-        require(success);
-        balances[msg.sender] -= amount;  // State update after call
+        balances[msg.sender] -= amount;  // Augmented assignment after call
     }
 }
 
-// SAFE: Proper CEI
-contract Safe {
+// VULNERABLE: Interprocedural CEI violation (helper function)
+contract InterproceduralVuln {
     mapping(address => uint) balances;
+    function _updateBalance(address user) internal { balances[user] = 0; }
+    function withdraw() external {
+        (bool success, ) = msg.sender.call{value: balances[msg.sender]}("");
+        _updateBalance(msg.sender);  // State mod hidden in callee
+    }
+}
 
-    function withdraw(uint amount) public {
-        require(balances[msg.sender] >= amount);
-        balances[msg.sender] -= amount;  // State update before call
-        (bool success, ) = msg.sender.call{value: amount}("");
-        require(success);
+// SAFE: Interprocedural but CEI order preserved
+contract InterproceduralSafe {
+    mapping(address => uint) balances;
+    function _clearBalance(address user) internal { balances[user] = 0; }
+    function withdraw() external {
+        _clearBalance(msg.sender);  // State mod BEFORE call
+        (bool success, ) = msg.sender.call{value: balances[msg.sender]}("");
     }
 }
 ```
+
+Test fixture categories in `ReentrancyTest.sol`:
+- **Direct CEI violations**: assignment, transfer, send patterns
+- **Safe patterns**: CEI order, reentrancy guards (nonReentrant, custom)
+- **Edge cases**: loops, conditionals, multiple state updates, read-only reentrancy
+- **Interprocedural**: helper writes, 2-level call chains, array pop, counter++
 
 ## Next Steps
 

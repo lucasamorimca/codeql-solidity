@@ -290,6 +290,48 @@ where
 select call, "Cross-contract call from " + callerContract.getName().toString()
 ```
 
+## Interprocedural State Analysis
+
+Combine call resolution with state modification detection to find transitive effects:
+
+```ql
+/** Holds if `call` is an internal function call (not external). */
+private predicate isInternalCall(Solidity::CallExpression call) {
+  CallResolution::resolveCall(call, _) and
+  not ExternalCalls::isLowLevelCall(call) and
+  not ExternalCalls::isContractReferenceCall(call) and
+  not ExternalCalls::isEtherTransfer(call) and
+  not ExternalCalls::isThisCall(call)
+}
+
+/**
+ * Transitive state modification via callgraph.
+ * QL fixpoint handles mutual recursion automatically.
+ */
+predicate functionModifiesState(Solidity::FunctionDefinition func,
+    Solidity::ContractDeclaration contract, string varName) {
+  // Base case
+  exists(Solidity::AstNode mod |
+    mod.getParent+() = func and directlyModifiesState(mod, contract, varName)
+  )
+  or
+  // Recursive case
+  exists(Solidity::CallExpression internalCall, Solidity::FunctionDefinition callee |
+    internalCall.getParent+() = func and
+    isInternalCall(internalCall) and
+    CallResolution::resolveCall(internalCall, callee) and
+    functionModifiesState(callee, contract, varName)
+  )
+}
+```
+
+Key points:
+- Only follow **internal** calls — external calls can't modify our storage
+- `this.func()` is excluded because it's an external call (CALL opcode)
+- QL evaluates recursive predicates as a least fixpoint — terminates naturally
+
+See `queries/analysis/ReentrancyPatterns.ql` for the full implementation.
+
 ## Library Call Support
 
 Built-in support for common libraries:

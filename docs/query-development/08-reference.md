@@ -24,7 +24,10 @@ Base AST types generated from tree-sitter grammar.
 | `Solidity::CallExpression` | Function call |
 | `Solidity::MemberExpression` | Member access (a.b) |
 | `Solidity::BinaryExpression` | Binary operation |
-| `Solidity::AssignmentExpression` | Assignment |
+| `Solidity::AssignmentExpression` | Assignment (`=`) |
+| `Solidity::AugmentedAssignmentExpression` | Augmented assignment (`+=`, `-=`, etc.) |
+| `Solidity::UpdateExpression` | Increment/decrement (`++`, `--`) |
+| `Solidity::UnaryExpression` | Unary ops (`delete`, `!`, `-`) |
 | `Solidity::Identifier` | Identifier reference |
 | `Solidity::NumberLiteral` | Numeric literal |
 | `Solidity::StringLiteral` | String literal |
@@ -150,6 +153,19 @@ Base AST types generated from tree-sitter grammar.
 | `isStaticCall(call)` | .staticcall() |
 | `isContractReferenceCall(call)` | High-level contract call |
 | `isEtherTransfer(call)` | .transfer() or .send() |
+| `isThisCall(call)` | this.func() external self-call |
+
+#### ReentrancyPatterns.ql Predicates
+
+| Predicate | Description |
+|-----------|-------------|
+| `directlyModifiesState(node, contract, varName)` | Node modifies state variable (5 mutation types) |
+| `functionModifiesState(func, contract, varName)` | Function transitively modifies state via callgraph |
+| `isInternalCall(call)` | Call is internal (not external/this/transfer) |
+| `isExternalCall(call)` | Call crosses contract boundary |
+| `isStateVarIdentifier(id, contract, varName)` | Identifier refers to state variable |
+| `callReachesStateMod(callNode, modNode)` | CFG reachability via `successor+` |
+| `hasReentrancyGuard(func)` | Function has reentrancy guard modifier |
 
 ## Query Metadata Reference
 
