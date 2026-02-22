@@ -1,6 +1,6 @@
 /**
  * @name Access control escalation detection
- * @description Detects access control escalation patterns: missing auth → state modification → external call
+ * @description Detects access control escalation patterns: missing auth -> state modification -> external call
  * @kind problem
  * @problem.severity error
  * @precision medium
@@ -81,25 +81,21 @@ predicate hasAccessControlCheck(Solidity::FunctionDefinition func) {
  * Holds if `node` modifies a state variable.
  */
 predicate modifiesState(Solidity::AstNode node) {
-  // Assignment
   exists(Solidity::AssignmentExpression assign |
     node = assign or
     assign.getParent+() = node.getParent+()
   )
   or
-  // Update expression (++, --)
   exists(Solidity::UpdateExpression update |
     node = update or
     update.getParent+() = node.getParent+()
   )
   or
-  // Delete
   exists(Solidity::UnaryExpression unary |
     node = unary and
     unary.getOperator().(Solidity::AstNode).getValue() = "delete"
   )
   or
-  // Array push/pop
   exists(Solidity::CallExpression call, Solidity::MemberExpression mem |
     node = call and
     call.getFunction() = mem and
@@ -117,49 +113,35 @@ private predicate isExternalCall(Solidity::CallExpression call) {
 }
 
 /**
- * Access control escalation pattern:
- * - Missing access control check
- * - Contains state modification
- * - Contains external call
- *
- * Output: access_escalation|contract|function|vulnerability_chain|visibility|file:line
+ * Access control escalation pattern: Missing access control + state modification + external call
  */
 string formatAccessEscalation(Solidity::FunctionDefinition func) {
-  exists(Solidity::ContractDeclaration contract |
+  exists(Solidity::ContractDeclaration contract, string location |
     func.getParent+() = contract and
     not hasAccessControlCheck(func) and
-    // Has state modification
     exists(Solidity::AstNode node |
       node.getParent+() = func.getBody() and
       modifiesState(node)
     ) and
-    // Has external call
     exists(Solidity::CallExpression call |
       call.getParent+() = func.getBody() and
       isExternalCall(call)
     ) and
-    // Only external/public functions are concerning
     getFunctionVisibility(func) in ["external", "public"] and
-    result =
-      "access_escalation|" + getContractName(contract) + "|" + getFunctionName(func) +
-        "|no_auth_state_mod_external_call|" + getFunctionVisibility(func) +
-        "|" + func.getLocation().getFile().getName() + ":" +
-        func.getLocation().getStartLine().toString()
+    location = func.getLocation().getFile().getName() + ":" + func.getLocation().getStartLine().toString() and
+    result = "{\"type\":\"access_escalation\",\"contract\":\"" + getContractName(contract) + "\",\"function\":\"" + getFunctionName(func) + "\",\"vulnerability_chain\":\"no_auth_state_mod_external_call\",\"visibility\":\"" + getFunctionVisibility(func) + "\",\"location\":\"" + location + "\"}"
   )
 }
 
 /**
- * Missing access control on sensitive functions (with external call)
- *
- * Output: missing_access_control|contract|function|sensitivity|visibility|file:line
+ * Missing access control on sensitive functions
  */
 string formatMissingAccessControl(Solidity::FunctionDefinition func) {
-  exists(Solidity::ContractDeclaration contract, string sensitivity |
+  exists(Solidity::ContractDeclaration contract, string sensitivity, string location |
     func.getParent+() = contract and
     not hasAccessControlCheck(func) and
     getFunctionVisibility(func) in ["external", "public"] and
     (
-      // Sensitive function names
       (
         getFunctionName(func).toLowerCase().matches("%admin%") or
         getFunctionName(func).toLowerCase().matches("%owner%") or
@@ -176,7 +158,6 @@ string formatMissingAccessControl(Solidity::FunctionDefinition func) {
       ) and
       sensitivity = "high"
       or
-      // Has external call (potential for escalation)
       (
         exists(Solidity::CallExpression call |
           call.getParent+() = func.getBody() and
@@ -185,21 +166,16 @@ string formatMissingAccessControl(Solidity::FunctionDefinition func) {
       ) and
       sensitivity = "medium"
     ) and
-    result =
-      "missing_access_control|" + getContractName(contract) + "|" + getFunctionName(func) +
-        "|" + sensitivity + "|" + getFunctionVisibility(func) +
-        "|" + func.getLocation().getFile().getName() + ":" +
-        func.getLocation().getStartLine().toString()
+    location = func.getLocation().getFile().getName() + ":" + func.getLocation().getStartLine().toString() and
+    result = "{\"type\":\"missing_access_control\",\"contract\":\"" + getContractName(contract) + "\",\"function\":\"" + getFunctionName(func) + "\",\"severity\":\"" + sensitivity + "\",\"visibility\":\"" + getFunctionVisibility(func) + "\",\"location\":\"" + location + "\"}"
   )
 }
 
 /**
  * State-modifying function without access control
- *
- * Output: unprotected_state_mod|contract|function|visibility|file:line
  */
 string formatUnprotectedStateMod(Solidity::FunctionDefinition func) {
-  exists(Solidity::ContractDeclaration contract |
+  exists(Solidity::ContractDeclaration contract, string location |
     func.getParent+() = contract and
     not hasAccessControlCheck(func) and
     getFunctionVisibility(func) in ["external", "public"] and
@@ -207,21 +183,16 @@ string formatUnprotectedStateMod(Solidity::FunctionDefinition func) {
       node.getParent+() = func.getBody() and
       modifiesState(node)
     ) and
-    result =
-      "unprotected_state_mod|" + getContractName(contract) + "|" + getFunctionName(func) +
-        "|" + getFunctionVisibility(func) +
-        "|" + func.getLocation().getFile().getName() + ":" +
-        func.getLocation().getStartLine().toString()
+    location = func.getLocation().getFile().getName() + ":" + func.getLocation().getStartLine().toString() and
+    result = "{\"type\":\"unprotected_state_mod\",\"contract\":\"" + getContractName(contract) + "\",\"function\":\"" + getFunctionName(func) + "\",\"visibility\":\"" + getFunctionVisibility(func) + "\",\"location\":\"" + location + "\"}"
   )
 }
 
 /**
  * External call without access control
- *
- * Output: unprotected_external_call|contract|function|visibility|file:line
  */
 string formatUnprotectedExternalCall(Solidity::FunctionDefinition func) {
-  exists(Solidity::ContractDeclaration contract |
+  exists(Solidity::ContractDeclaration contract, string location |
     func.getParent+() = contract and
     not hasAccessControlCheck(func) and
     getFunctionVisibility(func) in ["external", "public"] and
@@ -229,11 +200,8 @@ string formatUnprotectedExternalCall(Solidity::FunctionDefinition func) {
       call.getParent+() = func.getBody() and
       isExternalCall(call)
     ) and
-    result =
-      "unprotected_external_call|" + getContractName(contract) + "|" + getFunctionName(func) +
-        "|" + getFunctionVisibility(func) +
-        "|" + func.getLocation().getFile().getName() + ":" +
-        func.getLocation().getStartLine().toString()
+    location = func.getLocation().getFile().getName() + ":" + func.getLocation().getStartLine().toString() and
+    result = "{\"type\":\"unprotected_external_call\",\"contract\":\"" + getContractName(contract) + "\",\"function\":\"" + getFunctionName(func) + "\",\"visibility\":\"" + getFunctionVisibility(func) + "\",\"location\":\"" + location + "\"}"
   )
 }
 

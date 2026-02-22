@@ -48,30 +48,7 @@ private predicate isExternalCall(Solidity::CallExpression call) {
 }
 
 /**
- * Holds if `func` is a callback/hook function that can be invoked by external contracts.
- */
-predicate isCallbackFunction(Solidity::FunctionDefinition func) {
-  exists(string funcName |
-    funcName = getFunctionName(func).toLowerCase() |
-    funcName.matches("%callback%") or
-    funcName.matches("%hook%") or
-    funcName.matches("%received%") or
-    funcName = "tokensreceived" or
-    funcName = "ontokentransfer" or
-    funcName = "onerc721received" or
-    funcName = "onerc1155received" or
-    funcName.matches("%uniswapv2call%") or
-    funcName.matches("%uniswapv3swapcallback%") or
-    funcName.matches("%flashloan%") or
-    funcName = "receive" or
-    funcName = "fallback"
-  )
-}
-
-/**
- * Functions with external calls that lack reentrancy guards (baseline for cross-contract analysis)
- *
- * Output format: unguarded_external_call|caller_contract|caller_func|call_line
+ * Functions with external calls that lack reentrancy guards
  */
 string formatUnguardedExternalCalls(
   Solidity::CallExpression extCall,
@@ -83,34 +60,32 @@ string formatUnguardedExternalCalls(
   callerFunc.getParent+() = callerContract and
   not hasReentrancyGuard(callerFunc) and
   result =
-    "unguarded_external_call|" + getContractName(callerContract) + "|" + getFunctionName(callerFunc) +
-      "|" + extCall.getLocation().getFile().getName() + ":" + extCall.getLocation().getStartLine().toString()
+    "{\"type\":\"unguarded_external_call\",\"contract\":\"" + getContractName(callerContract) +
+    "\",\"function\":\"" + getFunctionName(callerFunc) +
+    "\",\"location\":\"" + (extCall.getLocation().getFile().getName() + ":" + extCall.getLocation().getStartLine().toString()) + "\"}"
 }
 
 /**
  * Receive/fallback function detection (reentrancy entry points)
- *
- * Output format: callback|contract|function_type|file:line
  */
 string formatCallback(Solidity::FunctionDefinition func) {
-  exists(Solidity::ContractDeclaration contract, string funcName |
+  exists(Solidity::ContractDeclaration contract, string funcName, string location |
     func.getParent+() = contract and
     funcName = getFunctionName(func).toLowerCase() and
     (funcName = "receive" or funcName = "fallback") and
+    location = func.getLocation().getFile().getName() + ":" + func.getLocation().getStartLine().toString() and
     result =
-      "callback|" + getContractName(contract) + "|" + funcName +
-        "|" + func.getLocation().getFile().getName() + ":" +
-        func.getLocation().getStartLine().toString()
+      "{\"type\":\"callback\",\"contract\":\"" + getContractName(contract) +
+      "\",\"function\":\"" + funcName +
+      "\",\"location\":\"" + location + "\"}"
   )
 }
 
 /**
  * ERC20 callback detection
- *
- * Output format: erc20_callback|contract|function|file:line
  */
 string formatERC20Callback(Solidity::FunctionDefinition func) {
-  exists(Solidity::ContractDeclaration contract, string funcName |
+  exists(Solidity::ContractDeclaration contract, string funcName, string location |
     func.getParent+() = contract and
     funcName = getFunctionName(func).toLowerCase() and
     (
@@ -121,14 +96,15 @@ string formatERC20Callback(Solidity::FunctionDefinition func) {
       funcName.matches("%uniswapv2call%") or
       funcName.matches("%uniswapv3swapcallback%")
     ) and
+    location = func.getLocation().getFile().getName() + ":" + func.getLocation().getStartLine().toString() and
     result =
-      "erc20_callback|" + getContractName(contract) + "|" + getFunctionName(func) +
-        "|" + func.getLocation().getFile().getName() + ":" +
-        func.getLocation().getStartLine().toString()
+      "{\"type\":\"erc20_callback\",\"contract\":\"" + getContractName(contract) +
+      "\",\"function\":\"" + getFunctionName(func) +
+      "\",\"location\":\"" + location + "\"}"
   )
 }
 
-// Main query - collect all cross-contract reentrancy patterns
+// Main query
 from string info
 where
   info = formatUnguardedExternalCalls(_, _, _)

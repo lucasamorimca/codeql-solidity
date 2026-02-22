@@ -124,16 +124,16 @@ module Solidity {
     class ArrayAccess extends @solidity_array_access, AstNode {
         override string getAPrimaryQlClass() { result = "ArrayAccess" }
 
-        /** Gets the base */
-        AstNode getBase() { solidity_array_access_base(this, 0, result) }
-
         /** Gets the index */
         AstNode getIndex() { solidity_array_access_index(this, 0, result) }
 
+        /** Gets the base */
+        AstNode getBase() { solidity_array_access_base(this, 0, result) }
+
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
-            or result = this.getBase()
             or result = this.getIndex()
+            or result = this.getBase()
         }
 
     }
@@ -204,19 +204,19 @@ module Solidity {
     class BinaryExpression extends @solidity_binary_expression, AstNode {
         override string getAPrimaryQlClass() { result = "BinaryExpression" }
 
-        /** Gets the left */
-        AstNode getLeft() { solidity_binary_expression_left(this, 0, result) }
-
         /** Gets the right */
         AstNode getRight() { solidity_binary_expression_right(this, 0, result) }
+
+        /** Gets the left */
+        AstNode getLeft() { solidity_binary_expression_left(this, 0, result) }
 
         /** Gets the operator */
         AstNode getOperator() { solidity_binary_expression_operator(this, 0, result) }
 
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
-            or result = this.getLeft()
             or result = this.getRight()
+            or result = this.getLeft()
             or result = this.getOperator()
         }
 
@@ -320,20 +320,20 @@ module Solidity {
     class ConstantVariableDeclaration extends @solidity_constant_variable_declaration, AstNode {
         override string getAPrimaryQlClass() { result = "ConstantVariableDeclaration" }
 
-        /** Gets the name */
-        AstNode getName() { solidity_constant_variable_declaration_name(this, 0, result) }
-
         /** Gets the type */
         AstNode getType() { solidity_constant_variable_declaration_type(this, 0, result) }
 
         /** Gets the field_value */
         AstNode getFieldValue() { solidity_constant_variable_declaration_value(this, 0, result) }
 
+        /** Gets the name */
+        AstNode getName() { solidity_constant_variable_declaration_name(this, 0, result) }
+
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
-            or result = this.getName()
             or result = this.getType()
             or result = this.getFieldValue()
+            or result = this.getName()
         }
 
     }
@@ -378,19 +378,19 @@ module Solidity {
     class ContractDeclaration extends @solidity_contract_declaration, AstNode {
         override string getAPrimaryQlClass() { result = "ContractDeclaration" }
 
-        /** Gets the body */
-        AstNode getBody() { solidity_contract_declaration_body(this, 0, result) }
-
         /** Gets the name */
         AstNode getName() { solidity_contract_declaration_name(this, 0, result) }
+
+        /** Gets the body */
+        AstNode getBody() { solidity_contract_declaration_body(this, 0, result) }
 
         /** Gets the child at index `i` */
         override AstNode getChild(int i) { solidity_contract_declaration_child(this, i, result) }
 
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
-            or result = this.getBody()
             or result = this.getName()
+            or result = this.getBody()
         }
 
     }
@@ -399,16 +399,16 @@ module Solidity {
     class DoWhileStatement extends @solidity_do_while_statement, AstNode {
         override string getAPrimaryQlClass() { result = "DoWhileStatement" }
 
-        /** Gets the body */
-        AstNode getBody() { solidity_do_while_statement_body(this, 0, result) }
-
         /** Gets the condition */
         AstNode getCondition() { solidity_do_while_statement_condition(this, 0, result) }
 
+        /** Gets the body */
+        AstNode getBody() { solidity_do_while_statement_body(this, 0, result) }
+
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
-            or result = this.getBody()
             or result = this.getCondition()
+            or result = this.getBody()
         }
 
     }
@@ -482,16 +482,16 @@ module Solidity {
     class ErrorParameter extends @solidity_error_parameter, AstNode {
         override string getAPrimaryQlClass() { result = "ErrorParameter" }
 
-        /** Gets the type */
-        AstNode getType() { solidity_error_parameter_type(this, 0, result) }
-
         /** Gets the name */
         AstNode getName() { solidity_error_parameter_name(this, 0, result) }
 
+        /** Gets the type */
+        AstNode getType() { solidity_error_parameter_type(this, 0, result) }
+
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
-            or result = this.getType()
             or result = this.getName()
+            or result = this.getType()
         }
 
     }
@@ -578,24 +578,24 @@ module Solidity {
     class ForStatement extends @solidity_for_statement, AstNode {
         override string getAPrimaryQlClass() { result = "ForStatement" }
 
-        /** Gets the condition */
-        AstNode getCondition() { solidity_for_statement_condition(this, 0, result) }
-
-        /** Gets the body */
-        AstNode getBody() { solidity_for_statement_body(this, 0, result) }
-
         /** Gets the initial */
         AstNode getInitial() { solidity_for_statement_initial(this, 0, result) }
+
+        /** Gets the condition */
+        AstNode getCondition() { solidity_for_statement_condition(this, 0, result) }
 
         /** Gets the update */
         AstNode getUpdate() { solidity_for_statement_update(this, 0, result) }
 
+        /** Gets the body */
+        AstNode getBody() { solidity_for_statement_body(this, 0, result) }
+
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
-            or result = this.getCondition()
-            or result = this.getBody()
             or result = this.getInitial()
+            or result = this.getCondition()
             or result = this.getUpdate()
+            or result = this.getBody()
         }
 
     }
@@ -617,11 +617,11 @@ module Solidity {
     class FunctionDefinition extends @solidity_function_definition, AstNode {
         override string getAPrimaryQlClass() { result = "FunctionDefinition" }
 
-        /** Gets the name */
-        AstNode getName() { solidity_function_definition_name(this, 0, result) }
-
         /** Gets the return_type */
         AstNode getReturnType() { solidity_function_definition_return_type(this, 0, result) }
+
+        /** Gets the name */
+        AstNode getName() { solidity_function_definition_name(this, 0, result) }
 
         /** Gets the body */
         AstNode getBody() { solidity_function_definition_body(this, 0, result) }
@@ -631,8 +631,8 @@ module Solidity {
 
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
-            or result = this.getName()
             or result = this.getReturnType()
+            or result = this.getName()
             or result = this.getBody()
         }
 
@@ -710,9 +710,6 @@ module Solidity {
     class InheritanceSpecifier extends @solidity_inheritance_specifier, AstNode {
         override string getAPrimaryQlClass() { result = "InheritanceSpecifier" }
 
-        /** Gets the ancestor */
-        AstNode getAncestor() { solidity_inheritance_specifier_ancestor(this, 0, result) }
-
         /** Gets the ancestor_arguments at index `i` */
         AstNode getAncestorArguments(int i) { solidity_inheritance_specifier_ancestor_arguments(this, i, result) }
 
@@ -722,10 +719,13 @@ module Solidity {
         /** Gets the number of ancestor_argumentss */
         int getNumAncestorArgumentss() { result = count(this.getAAncestorArguments()) }
 
+        /** Gets the ancestor */
+        AstNode getAncestor() { solidity_inheritance_specifier_ancestor(this, 0, result) }
+
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
-            or result = this.getAncestor()
             or result = this.getAAncestorArguments()
+            or result = this.getAncestor()
         }
 
     }
@@ -747,19 +747,19 @@ module Solidity {
     class InterfaceDeclaration extends @solidity_interface_declaration, AstNode {
         override string getAPrimaryQlClass() { result = "InterfaceDeclaration" }
 
-        /** Gets the name */
-        AstNode getName() { solidity_interface_declaration_name(this, 0, result) }
-
         /** Gets the body */
         AstNode getBody() { solidity_interface_declaration_body(this, 0, result) }
+
+        /** Gets the name */
+        AstNode getName() { solidity_interface_declaration_name(this, 0, result) }
 
         /** Gets the child at index `i` */
         override AstNode getChild(int i) { solidity_interface_declaration_child(this, i, result) }
 
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
-            or result = this.getName()
             or result = this.getBody()
+            or result = this.getName()
         }
 
     }
@@ -824,19 +824,19 @@ module Solidity {
     class ModifierDefinition extends @solidity_modifier_definition, AstNode {
         override string getAPrimaryQlClass() { result = "ModifierDefinition" }
 
-        /** Gets the body */
-        AstNode getBody() { solidity_modifier_definition_body(this, 0, result) }
-
         /** Gets the name */
         AstNode getName() { solidity_modifier_definition_name(this, 0, result) }
+
+        /** Gets the body */
+        AstNode getBody() { solidity_modifier_definition_body(this, 0, result) }
 
         /** Gets the child at index `i` */
         override AstNode getChild(int i) { solidity_modifier_definition_child(this, i, result) }
 
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
-            or result = this.getBody()
             or result = this.getName()
+            or result = this.getBody()
         }
 
     }
@@ -904,20 +904,20 @@ module Solidity {
     class Parameter extends @solidity_parameter, AstNode {
         override string getAPrimaryQlClass() { result = "Parameter" }
 
+        /** Gets the type */
+        AstNode getType() { solidity_parameter_type(this, 0, result) }
+
         /** Gets the storage_location */
         AstNode getStorageLocation() { solidity_parameter_location(this, 0, result) }
 
         /** Gets the name */
         AstNode getName() { solidity_parameter_name(this, 0, result) }
 
-        /** Gets the type */
-        AstNode getType() { solidity_parameter_type(this, 0, result) }
-
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
+            or result = this.getType()
             or result = this.getStorageLocation()
             or result = this.getName()
-            or result = this.getType()
         }
 
     }
@@ -1039,20 +1039,20 @@ module Solidity {
     class SliceAccess extends @solidity_slice_access, AstNode {
         override string getAPrimaryQlClass() { result = "SliceAccess" }
 
-        /** Gets the from */
-        AstNode getFrom() { solidity_slice_access_from(this, 0, result) }
-
         /** Gets the to */
         AstNode getTo() { solidity_slice_access_to(this, 0, result) }
 
         /** Gets the base */
         AstNode getBase() { solidity_slice_access_base(this, 0, result) }
 
+        /** Gets the from */
+        AstNode getFrom() { solidity_slice_access_from(this, 0, result) }
+
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
-            or result = this.getFrom()
             or result = this.getTo()
             or result = this.getBase()
+            or result = this.getFrom()
         }
 
     }
@@ -1112,20 +1112,11 @@ module Solidity {
     class StateVariableDeclaration extends @solidity_state_variable_declaration, AstNode {
         override string getAPrimaryQlClass() { result = "StateVariableDeclaration" }
 
-        /** Gets the name */
-        AstNode getName() { solidity_state_variable_declaration_name(this, 0, result) }
+        /** Gets the field_value */
+        AstNode getFieldValue() { solidity_state_variable_declaration_value(this, 0, result) }
 
         /** Gets the type */
         AstNode getType() { solidity_state_variable_declaration_type(this, 0, result) }
-
-        /** Gets the visibility at index `i` */
-        AstNode getVisibility(int i) { solidity_state_variable_declaration_visibility(this, i, result) }
-
-        /** Gets any visibility */
-        AstNode getAVisibility() { solidity_state_variable_declaration_visibility(this, _, result) }
-
-        /** Gets the number of visibilitys */
-        int getNumVisibilitys() { result = count(this.getAVisibility()) }
 
         /** Gets the storage_location at index `i` */
         AstNode getStorageLocation(int i) { solidity_state_variable_declaration_location(this, i, result) }
@@ -1136,19 +1127,28 @@ module Solidity {
         /** Gets the number of storage_locations */
         int getNumStorageLocations() { result = count(this.getAStorageLocation()) }
 
-        /** Gets the field_value */
-        AstNode getFieldValue() { solidity_state_variable_declaration_value(this, 0, result) }
+        /** Gets the name */
+        AstNode getName() { solidity_state_variable_declaration_name(this, 0, result) }
+
+        /** Gets the visibility at index `i` */
+        AstNode getVisibility(int i) { solidity_state_variable_declaration_visibility(this, i, result) }
+
+        /** Gets any visibility */
+        AstNode getAVisibility() { solidity_state_variable_declaration_visibility(this, _, result) }
+
+        /** Gets the number of visibilitys */
+        int getNumVisibilitys() { result = count(this.getAVisibility()) }
 
         /** Gets the child at index `i` */
         override AstNode getChild(int i) { solidity_state_variable_declaration_child(this, i, result) }
 
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
-            or result = this.getName()
-            or result = this.getType()
-            or result = this.getAVisibility()
-            or result = this.getAStorageLocation()
             or result = this.getFieldValue()
+            or result = this.getType()
+            or result = this.getAStorageLocation()
+            or result = this.getName()
+            or result = this.getAVisibility()
         }
 
     }
@@ -1234,16 +1234,16 @@ module Solidity {
     class StructFieldAssignment extends @solidity_struct_field_assignment, AstNode {
         override string getAPrimaryQlClass() { result = "StructFieldAssignment" }
 
-        /** Gets the name */
-        AstNode getName() { solidity_struct_field_assignment_name(this, 0, result) }
-
         /** Gets the field_value */
         AstNode getFieldValue() { solidity_struct_field_assignment_value(this, 0, result) }
 
+        /** Gets the name */
+        AstNode getName() { solidity_struct_field_assignment_name(this, 0, result) }
+
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
-            or result = this.getName()
             or result = this.getFieldValue()
+            or result = this.getName()
         }
 
     }
@@ -1289,19 +1289,19 @@ module Solidity {
     class TryStatement extends @solidity_try_statement, AstNode {
         override string getAPrimaryQlClass() { result = "TryStatement" }
 
-        /** Gets the attempt */
-        AstNode getAttempt() { solidity_try_statement_attempt(this, 0, result) }
-
         /** Gets the body */
         AstNode getBody() { solidity_try_statement_body(this, 0, result) }
+
+        /** Gets the attempt */
+        AstNode getAttempt() { solidity_try_statement_attempt(this, 0, result) }
 
         /** Gets the child at index `i` */
         override AstNode getChild(int i) { solidity_try_statement_child(this, i, result) }
 
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
-            or result = this.getAttempt()
             or result = this.getBody()
+            or result = this.getAttempt()
         }
 
     }
@@ -1349,17 +1349,8 @@ module Solidity {
     class TypeName extends @solidity_type_name, AstNode {
         override string getAPrimaryQlClass() { result = "TypeName" }
 
-        /** Gets the value_identifier */
-        AstNode getValueIdentifier() { solidity_type_name_value_identifier(this, 0, result) }
-
         /** Gets the key_identifier */
         AstNode getKeyIdentifier() { solidity_type_name_key_identifier(this, 0, result) }
-
-        /** Gets the value_type */
-        AstNode getValueType() { solidity_type_name_value_type(this, 0, result) }
-
-        /** Gets the key_type */
-        AstNode getKeyType() { solidity_type_name_key_type(this, 0, result) }
 
         /** Gets the parameters at index `i` */
         AstNode getParameters(int i) { solidity_type_name_parameters(this, i, result) }
@@ -1370,16 +1361,25 @@ module Solidity {
         /** Gets the number of parameterss */
         int getNumParameterss() { result = count(this.getAParameters()) }
 
+        /** Gets the key_type */
+        AstNode getKeyType() { solidity_type_name_key_type(this, 0, result) }
+
+        /** Gets the value_identifier */
+        AstNode getValueIdentifier() { solidity_type_name_value_identifier(this, 0, result) }
+
+        /** Gets the value_type */
+        AstNode getValueType() { solidity_type_name_value_type(this, 0, result) }
+
         /** Gets the child at index `i` */
         override AstNode getChild(int i) { solidity_type_name_child(this, i, result) }
 
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
-            or result = this.getValueIdentifier()
             or result = this.getKeyIdentifier()
-            or result = this.getValueType()
-            or result = this.getKeyType()
             or result = this.getAParameters()
+            or result = this.getKeyType()
+            or result = this.getValueIdentifier()
+            or result = this.getValueType()
         }
 
     }
@@ -1388,16 +1388,16 @@ module Solidity {
     class UnaryExpression extends @solidity_unary_expression, AstNode {
         override string getAPrimaryQlClass() { result = "UnaryExpression" }
 
-        /** Gets the operator */
-        AstNode getOperator() { solidity_unary_expression_operator(this, 0, result) }
-
         /** Gets the argument */
         AstNode getArgument() { solidity_unary_expression_argument(this, 0, result) }
 
+        /** Gets the operator */
+        AstNode getOperator() { solidity_unary_expression_operator(this, 0, result) }
+
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
-            or result = this.getOperator()
             or result = this.getArgument()
+            or result = this.getOperator()
         }
 
     }
@@ -1412,16 +1412,16 @@ module Solidity {
     class UpdateExpression extends @solidity_update_expression, AstNode {
         override string getAPrimaryQlClass() { result = "UpdateExpression" }
 
-        /** Gets the argument */
-        AstNode getArgument() { solidity_update_expression_argument(this, 0, result) }
-
         /** Gets the operator */
         AstNode getOperator() { solidity_update_expression_operator(this, 0, result) }
 
+        /** Gets the argument */
+        AstNode getArgument() { solidity_update_expression_argument(this, 0, result) }
+
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
-            or result = this.getArgument()
             or result = this.getOperator()
+            or result = this.getArgument()
         }
 
     }
@@ -1548,16 +1548,16 @@ module Solidity {
     class WhileStatement extends @solidity_while_statement, AstNode {
         override string getAPrimaryQlClass() { result = "WhileStatement" }
 
-        /** Gets the condition */
-        AstNode getCondition() { solidity_while_statement_condition(this, 0, result) }
-
         /** Gets the body */
         AstNode getBody() { solidity_while_statement_body(this, 0, result) }
 
+        /** Gets the condition */
+        AstNode getCondition() { solidity_while_statement_condition(this, 0, result) }
+
         override AstNode getAFieldOrChild() {
             result = super.getAFieldOrChild()
-            or result = this.getCondition()
             or result = this.getBody()
+            or result = this.getCondition()
         }
 
     }

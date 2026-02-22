@@ -43,19 +43,6 @@ string getFunctionVisibility(Solidity::FunctionDefinition func) {
 }
 
 /**
- * Gets the state variables of a contract as a comma-separated string.
- */
-string getStateVars(Solidity::ContractDeclaration contract) {
-  exists(string vars |
-    vars = concat(Solidity::StateVariableDeclaration v |
-      v.getParent+() = contract |
-      v.getName().(Solidity::AstNode).getValue(), ", "
-    ) and
-    result = vars
-  )
-}
-
-/**
  * Holds if `call` is an external call.
  */
 private predicate isExternalCall(Solidity::CallExpression call) {
@@ -101,36 +88,35 @@ predicate modifiesState(Solidity::FunctionDefinition func) {
   )
 }
 
-/**
+ /**
  * External function suitable for invariant testing
- *
- * Output: invariant_target|contract|function|state_vars|access_level|risk_flags|file:line
  */
 string formatInvariantTarget(Solidity::FunctionDefinition func) {
-  exists(Solidity::ContractDeclaration contract, string riskFlags |
+  exists(Solidity::ContractDeclaration contract, string riskFlags, string location |
     func.getParent+() = contract and
     getFunctionVisibility(func) in ["external", "public"] and
     modifiesState(func) and
     (
       if hasAccessControl(func) then riskFlags = "auth" else riskFlags = "no_auth"
     ) and
-    if hasReentrancyGuard(func) then riskFlags = riskFlags + ",reentrancy_guard" else riskFlags = riskFlags + ",no_guard"
-    and
+    (
+      if hasReentrancyGuard(func) then riskFlags = riskFlags + ",reentrancy_guard" else riskFlags = riskFlags + ",no_guard"
+    ) and
+    location = func.getLocation().getFile().getName() + ":" + func.getLocation().getStartLine().toString() and
     result =
-      "invariant_target|" + getContractName(contract) + "|" + getFunctionName(func) +
-        "|" + getFunctionVisibility(func) + "|" + riskFlags +
-        "|" + func.getLocation().getFile().getName() + ":" +
-        func.getLocation().getStartLine().toString()
+      "{\"type\":\"invariant_target\",\"contract\":\"" + getContractName(contract) +
+      "\",\"function\":\"" + getFunctionName(func) +
+      "\",\"visibility\":\"" + getFunctionVisibility(func) +
+      "\",\"risk_flags\":\"" + riskFlags +
+      "\",\"location\":\"" + location + "\"}"
   )
 }
 
 /**
  * View function that reads state (potential invariant source)
- *
- * Output: invariant_source|contract|function|visibility|file:line
  */
 string formatInvariantSource(Solidity::FunctionDefinition func) {
-  exists(Solidity::ContractDeclaration contract |
+  exists(Solidity::ContractDeclaration contract, string location |
     func.getParent+() = contract and
     getFunctionVisibility(func) in ["external", "public", "view"] and
     exists(Solidity::Identifier id |
@@ -140,21 +126,20 @@ string formatInvariantSource(Solidity::FunctionDefinition func) {
         sv.getName().(Solidity::AstNode).getValue() = id.getValue()
       )
     ) and
+    location = func.getLocation().getFile().getName() + ":" + func.getLocation().getStartLine().toString() and
     result =
-      "invariant_source|" + getContractName(contract) + "|" + getFunctionName(func) +
-        "|" + getFunctionVisibility(func) +
-        "|" + func.getLocation().getFile().getName() + ":" +
-        func.getLocation().getStartLine().toString()
+      "{\"type\":\"invariant_source\",\"contract\":\"" + getContractName(contract) +
+      "\",\"function\":\"" + getFunctionName(func) +
+      "\",\"visibility\":\"" + getFunctionVisibility(func) +
+      "\",\"location\":\"" + location + "\"}"
   )
 }
 
 /**
  * External call without reentrancy guard (high priority for invariant testing)
- *
- * Output: high_risk_invariant|contract|function|has_external_call|has_guard|file:line
  */
 string formatHighRiskInvariant(Solidity::FunctionDefinition func) {
-  exists(Solidity::ContractDeclaration contract, string hasGuard |
+  exists(Solidity::ContractDeclaration contract, string location |
     func.getParent+() = contract and
     getFunctionVisibility(func) in ["external", "public"] and
     modifiesState(func) and
@@ -163,52 +148,45 @@ string formatHighRiskInvariant(Solidity::FunctionDefinition func) {
       isExternalCall(call)
     ) and
     not hasReentrancyGuard(func) and
-    hasGuard = "false" and
+    location = func.getLocation().getFile().getName() + ":" + func.getLocation().getStartLine().toString() and
     result =
-      "high_risk_invariant|" + getContractName(contract) + "|" + getFunctionName(func) +
-        "|external_call|" + hasGuard +
-        "|" + func.getLocation().getFile().getName() + ":" +
-        func.getLocation().getStartLine().toString()
+      "{\"type\":\"high_risk_invariant\",\"contract\":\"" + getContractName(contract) +
+      "\",\"function\":\"" + getFunctionName(func) +
+      "\",\"risk\":\"external_call_no_guard\"" +
+      ",\"location\":\"" + location + "\"}"
   )
 }
 
 /**
  * Balance-modifying function (key for financial invariants)
- *
- * Output: balance_invariant|contract|function|operation_type|file:line
  */
 string formatBalanceInvariant(Solidity::FunctionDefinition func) {
-  exists(Solidity::ContractDeclaration contract, string opType |
+  exists(Solidity::ContractDeclaration contract, string location |
     func.getParent+() = contract and
     getFunctionVisibility(func) in ["external", "public"] and
     (
-      // Looks like a balance-modifying function
-      (
-        getFunctionName(func).toLowerCase().matches("%transfer%") or
-        getFunctionName(func).toLowerCase().matches("%withdraw%") or
-        getFunctionName(func).toLowerCase().matches("%deposit%") or
-        getFunctionName(func).toLowerCase().matches("%mint%") or
-        getFunctionName(func).toLowerCase().matches("%burn%") or
-        getFunctionName(func).toLowerCase().matches("%send%") or
-        getFunctionName(func).toLowerCase().matches("%pay%")
-      ) and
-      opType = "token_transfer"
+      getFunctionName(func).toLowerCase().matches("%transfer%") or
+      getFunctionName(func).toLowerCase().matches("%withdraw%") or
+      getFunctionName(func).toLowerCase().matches("%deposit%") or
+      getFunctionName(func).toLowerCase().matches("%mint%") or
+      getFunctionName(func).toLowerCase().matches("%burn%") or
+      getFunctionName(func).toLowerCase().matches("%send%") or
+      getFunctionName(func).toLowerCase().matches("%pay%")
     ) and
+    location = func.getLocation().getFile().getName() + ":" + func.getLocation().getStartLine().toString() and
     result =
-      "balance_invariant|" + getContractName(contract) + "|" + getFunctionName(func) +
-        "|" + opType +
-        "|" + func.getLocation().getFile().getName() + ":" +
-        func.getLocation().getStartLine().toString()
+      "{\"type\":\"balance_invariant\",\"contract\":\"" + getContractName(contract) +
+      "\",\"function\":\"" + getFunctionName(func) +
+      "\",\"operation_type\":\"token_transfer\"" +
+      ",\"location\":\"" + location + "\"}"
   )
 }
 
 /**
  * Permission-modifying function (key for access control invariants)
- *
- * Output: permission_invariant|contract|function|access_level|file:line
  */
 string formatPermissionInvariant(Solidity::FunctionDefinition func) {
-  exists(Solidity::ContractDeclaration contract |
+  exists(Solidity::ContractDeclaration contract, string location |
     func.getParent+() = contract and
     getFunctionVisibility(func) in ["external", "public"] and
     (
@@ -220,60 +198,12 @@ string formatPermissionInvariant(Solidity::FunctionDefinition func) {
       getFunctionName(func).toLowerCase().matches("%pause%") or
       getFunctionName(func).toLowerCase().matches("%unpause%")
     ) and
+    location = func.getLocation().getFile().getName() + ":" + func.getLocation().getStartLine().toString() and
     result =
-      "permission_invariant|" + getContractName(contract) + "|" + getFunctionName(func) +
-        "|" + getFunctionVisibility(func) +
-        "|" + func.getLocation().getFile().getName() + ":" +
-        func.getLocation().getStartLine().toString()
-  )
-}
-
-/**
- * Function with require/assert validations (potential invariant expressions)
- *
- * Output: validation_invariant|contract|function|validation_count|file:line
- */
-string formatValidationInvariant(Solidity::FunctionDefinition func) {
-  exists(Solidity::ContractDeclaration contract, int validationCount |
-    func.getParent+() = contract and
-    validationCount = count(Solidity::CallExpression call |
-      call.getParent+() = func.getBody() and
-      (
-        call.getFunction().(Solidity::Identifier).getValue() = "require" or
-        call.getFunction().(Solidity::Identifier).getValue() = "assert" or
-        call.getFunction().(Solidity::Identifier).getValue() = "revert"
-      )
-    ) and
-    validationCount > 0 and
-    result =
-      "validation_invariant|" + getContractName(contract) + "|" + getFunctionName(func) +
-        "|" + validationCount.toString() +
-        "|" + func.getLocation().getFile().getName() + ":" +
-        func.getLocation().getStartLine().toString()
-  )
-}
-
-/**
- * State machine transition function (key for state invariant testing)
- *
- * Output: state_machine_invariant|contract|function|transitions_from|file:line
- */
-string formatStateMachineInvariant(Solidity::FunctionDefinition func) {
-  exists(Solidity::ContractDeclaration contract |
-    func.getParent+() = contract and
-    getFunctionVisibility(func) in ["external", "public"] and
-    (
-      getFunctionName(func).toLowerCase().matches("%setstate%") or
-      getFunctionName(func).toLowerCase().matches("%transition%") or
-      getFunctionName(func).toLowerCase().matches("%next%") or
-      getFunctionName(func).toLowerCase().matches("%advance%") or
-      getFunctionName(func).toLowerCase().matches("%change%state%")
-    ) and
-    result =
-      "state_machine_invariant|" + getContractName(contract) + "|" + getFunctionName(func) +
-        "|" + getFunctionVisibility(func) +
-        "|" + func.getLocation().getFile().getName() + ":" +
-        func.getLocation().getStartLine().toString()
+      "{\"type\":\"permission_invariant\",\"contract\":\"" + getContractName(contract) +
+      "\",\"function\":\"" + getFunctionName(func) +
+      "\",\"visibility\":\"" + getFunctionVisibility(func) +
+      ",\"location\":\"" + location + "\"}"
   )
 }
 
@@ -289,8 +219,4 @@ where
   info = formatBalanceInvariant(_)
   or
   info = formatPermissionInvariant(_)
-  or
-  info = formatValidationInvariant(_)
-  or
-  info = formatStateMachineInvariant(_)
 select info, info

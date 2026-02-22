@@ -32,44 +32,44 @@ private predicate isDelegatecall(Solidity::CallExpression call) {
   ExternalCalls::isDelegateCall(call)
 }
 
-/**
- * Gets the state variables of a contract.
+ /**
+ * State variable
  */
 string formatStateVariable(Solidity::StateVariableDeclaration var) {
-  exists(Solidity::ContractDeclaration contract, string varName, string varType |
+  exists(Solidity::ContractDeclaration contract, string varName, string varType, string location |
     var.getParent+() = contract and
     varName = var.getName().(Solidity::AstNode).getValue() and
     varType = var.getType().(Solidity::AstNode).toString() and
+    location = var.getLocation().getStartLine().toString() and
     result =
-      "state_var|" + getContractName(contract) + "|" + varName + "|" + varType +
-        "|" + var.getLocation().getStartLine().toString()
+      "{\"type\":\"state_var\",\"contract\":\"" + getContractName(contract) +
+      "\",\"variable\":\"" + varName +
+      "\",\"var_type\":\"" + varType +
+      "\",\"line\":" + location + "}"
   )
 }
 
 /**
  * Delegatecall detection
- *
- * Output: delegatecall|contract|function|file:line
  */
 string formatDelegatecall(Solidity::CallExpression call) {
-  isDelegatecall(call) and
-  exists(Solidity::FunctionDefinition func, Solidity::ContractDeclaration contract |
+  exists(Solidity::FunctionDefinition func, Solidity::ContractDeclaration contract, string location |
+    isDelegatecall(call) and
     call.getParent+() = func and
     func.getParent+() = contract and
+    location = call.getLocation().getFile().getName() + ":" + call.getLocation().getStartLine().toString() and
     result =
-      "delegatecall|" + getContractName(contract) + "|" + getFunctionName(func) +
-        "|" + call.getLocation().getFile().getName() + ":" +
-        call.getLocation().getStartLine().toString()
+      "{\"type\":\"delegatecall\",\"contract\":\"" + getContractName(contract) +
+      "\",\"function\":\"" + getFunctionName(func) +
+      "\",\"location\":\"" + location + "\"}"
   )
 }
 
 /**
  * Implementation slot detection
- *
- * Output: impl_slot|contract|variable|file:line
  */
 string formatImplementationSlot(Solidity::StateVariableDeclaration var) {
-  exists(Solidity::ContractDeclaration contract, string varName |
+  exists(Solidity::ContractDeclaration contract, string varName, string location |
     var.getParent+() = contract and
     varName = var.getName().(Solidity::AstNode).getValue() and
     (
@@ -77,10 +77,11 @@ string formatImplementationSlot(Solidity::StateVariableDeclaration var) {
       varName.toLowerCase().matches("%logic%") or
       varName.toLowerCase().matches("%target%")
     ) and
+    location = var.getLocation().getFile().getName() + ":" + var.getLocation().getStartLine().toString() and
     result =
-      "impl_slot|" + getContractName(contract) + "|" + varName +
-        "|" + var.getLocation().getFile().getName() + ":" +
-        var.getLocation().getStartLine().toString()
+      "{\"type\":\"impl_slot\",\"contract\":\"" + getContractName(contract) +
+      "\",\"variable\":\"" + varName +
+      "\",\"location\":\"" + location + "\"}"
   )
 }
 
