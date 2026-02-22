@@ -61,6 +61,14 @@ string getFunctionMutability(Solidity::FunctionDefinition func) {
   result = "nonpayable"
 }
 
+/** Gets the modifier name from a ModifierInvocation. */
+string getModifierName(Solidity::ModifierInvocation mod) {
+  exists(Solidity::Identifier id |
+    id = mod.getAChild*() and
+    result = id.getValue()
+  )
+}
+
 /**
  * Gets modifiers applied to a function as comma-separated string.
  */
@@ -69,7 +77,7 @@ string getFunctionModifiers(Solidity::FunctionDefinition func) {
     concat(Solidity::ModifierInvocation mod |
       mod.getParent() = func
     |
-      mod.getValue(), ","
+      getModifierName(mod), ","
     )
   or
   not exists(Solidity::ModifierInvocation mod | mod.getParent() = func) and
