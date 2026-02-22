@@ -70,7 +70,7 @@ string getFunctionModifier(Solidity::FunctionDefinition func) {
 
 /**
  * Contract inheritance information.
- * Output: type|name|is_abstract|direct_parents|depth|file:line
+ * Output: JSON with type, name, is_abstract, direct_parents, depth, file, line
  */
 string formatContractInheritance(Solidity::ContractDeclaration contract) {
   exists(string contractType, string isAbstract, string parents, int depth |
@@ -88,14 +88,16 @@ string formatContractInheritance(Solidity::ContractDeclaration contract) {
       ) and
     depth = InheritanceGraph::getInheritanceDepth(contract) and
     result =
-      contractType + "|" + getContractName(contract) + "|" + isAbstract + "|" + parents + "|" +
-        depth.toString() + "|" + contract.getLocation().getFile().getName() + ":" +
-        contract.getLocation().getStartLine().toString()
+      "{\"type\":\"contract\",\"name\":\"" + getContractName(contract) + "\",\"is_abstract\":\""
+        + isAbstract + "\",\"direct_parents\":\"" + parents + "\",\"depth\":\""
+        + depth.toString() + "\",\"file\":\"" + contract.getLocation().getFile().getName()
+        + "\",\"line\":\"" + contract.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Interface information.
+ * Output: JSON with type, name, is_abstract, parents, depth, file, line
  */
 string formatInterfaceInfo(Solidity::InterfaceDeclaration iface) {
   exists(string parents |
@@ -106,24 +108,26 @@ string formatInterfaceInfo(Solidity::InterfaceDeclaration iface) {
         getInterfaceName(base), ","
       ) and
     result =
-      "interface|" + getInterfaceName(iface) + "|false|" + parents + "|0|" +
-        iface.getLocation().getFile().getName() + ":" +
-        iface.getLocation().getStartLine().toString()
+      "{\"type\":\"interface\",\"name\":\"" + getInterfaceName(iface) + "\",\"is_abstract\":\"false\",\"parents\":\""
+        + parents + "\",\"depth\":\"0\",\"file\":\"" + iface.getLocation().getFile().getName()
+        + "\",\"line\":\"" + iface.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Library information.
+ * Output: JSON with type, name, is_abstract, parents, depth, file, line
  */
 string formatLibraryInfo(Solidity::LibraryDeclaration lib) {
   result =
-    "library|" + getLibraryName(lib) + "|false||0|" + lib.getLocation().getFile().getName() + ":" +
-      lib.getLocation().getStartLine().toString()
+    "{\"type\":\"library\",\"name\":\"" + getLibraryName(lib) + "\",\"is_abstract\":\"false\",\"parents\":\"\",\"depth\":\"0\",\"file\":\""
+      + lib.getLocation().getFile().getName() + "\",\"line\":\""
+      + lib.getLocation().getStartLine().toString() + "\"}"
 }
 
 /**
  * Overridden function information.
- * Output: override|func_name|declaring_contract|overrides_contract|visibility|file:line
+ * Output: JSON with type, func_name, declaring_contract, overrides_contract, visibility, file, line
  */
 string formatOverriddenFunction(Solidity::FunctionDefinition func) {
   InheritanceGraph::isOverrideFunction(func) and
@@ -135,16 +139,17 @@ string formatOverriddenFunction(Solidity::FunctionDefinition func) {
     overridden = InheritanceGraph::getOverriddenFunction(func) and
     visibility = getFunctionVisibility(func) and
     result =
-      "override|" + getFunctionName(func) + "|" + getContractName(contract) + "|" +
-        getContractName(overridden.getParent+()) + "|" + visibility + "|" +
-        func.getLocation().getFile().getName() + ":" +
-        func.getLocation().getStartLine().toString()
+      "{\"type\":\"override\",\"func_name\":\"" + getFunctionName(func) + "\",\"declaring_contract\":\""
+        + getContractName(contract) + "\",\"overrides_contract\":\""
+        + getContractName(overridden.getParent+()) + "\",\"visibility\":\"" + visibility
+        + "\",\"file\":\"" + func.getLocation().getFile().getName() + "\",\"line\":\""
+        + func.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Virtual function information.
- * Output: virtual|func_name|contract|visibility|file:line
+ * Output: JSON with type, func_name, contract, visibility, file, line
  */
 string formatVirtualFunction(Solidity::FunctionDefinition func) {
   InheritanceGraph::isVirtualFunction(func) and
@@ -152,15 +157,16 @@ string formatVirtualFunction(Solidity::FunctionDefinition func) {
     func.getParent+() = contract and
     visibility = getFunctionVisibility(func) and
     result =
-      "virtual|" + getFunctionName(func) + "|" + getContractName(contract) + "|" + visibility + "|" +
-        func.getLocation().getFile().getName() + ":" +
-        func.getLocation().getStartLine().toString()
+      "{\"type\":\"virtual\",\"func_name\":\"" + getFunctionName(func) + "\",\"contract\":\""
+        + getContractName(contract) + "\",\"visibility\":\"" + visibility + "\",\"file\":\""
+        + func.getLocation().getFile().getName() + "\",\"line\":\""
+        + func.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Diamond inheritance detection.
- * Output: diamond|contract|repeated_base
+ * Output: JSON with type, contract, repeated_base
  */
 string formatDiamondInheritance(Solidity::ContractDeclaration contract) {
   exists(Solidity::ContractDeclaration base |
@@ -169,7 +175,8 @@ string formatDiamondInheritance(Solidity::ContractDeclaration contract) {
       InheritanceGraph::inheritsFrom(contract, intermediate) and
       InheritanceGraph::inheritsFrom(intermediate, base)
     ) > 1 and
-    result = "diamond|" + getContractName(contract) + "|" + getContractName(base)
+    result = "{\"type\":\"diamond\",\"contract\":\"" + getContractName(contract)
+      + "\",\"repeated_base\":\"" + getContractName(base) + "\"}"
   )
 }
 

@@ -47,7 +47,7 @@ string getExternalCallType(ExternalCalls::ExternalCall call) {
 
 /**
  * External calls query.
- * Format: contract.function -> external_call_type (target_expression)
+ * Output: JSON with caller, call_type, file, line
  */
 from
   ExternalCalls::ExternalCall call,
@@ -59,6 +59,7 @@ where
   callerContract = call.getEnclosingContract() and
   callType = getExternalCallType(call)
 select call,
-  getContractName(callerContract) + "." + getFunctionName(callerFunc) + " -> [" + callType +
-    "] at " + call.getLocation().getFile().getName() + ":" +
-    call.getLocation().getStartLine().toString()
+  "{\"caller\":\"" + getContractName(callerContract) + "." + getFunctionName(callerFunc)
+    + "\",\"call_type\":\"" + callType + "\",\"file\":\""
+    + call.getLocation().getFile().getName() + "\",\"line\":\""
+    + call.getLocation().getStartLine().toString() + "\"}"

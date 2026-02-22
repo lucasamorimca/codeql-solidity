@@ -107,7 +107,7 @@ predicate isERC1155Function(string name) {
 
 /**
  * Contract function (for compliance checking).
- * Output: contract_func|contract|name|visibility|mutability|params|file:line
+ * Output: JSON with type, contract, name, visibility, mutability, params, file, line
  */
 string formatContractFunction(Solidity::FunctionDefinition func) {
   exists(
@@ -118,15 +118,17 @@ string formatContractFunction(Solidity::FunctionDefinition func) {
     mutability = getFunctionMutability(func) and
     params = getParamCount(func) and
     result =
-      "contract_func|" + getContractName(contract) + "|" + getFunctionName(func) + "|" + visibility
-        + "|" + mutability + "|" + params.toString() + "|" +
-        func.getLocation().getFile().getName() + ":" + func.getLocation().getStartLine().toString()
+      "{\"type\":\"contract_func\",\"contract\":\"" + getContractName(contract) + "\",\"name\":\""
+        + getFunctionName(func) + "\",\"visibility\":\"" + visibility + "\",\"mutability\":\""
+        + mutability + "\",\"params\":\"" + params.toString() + "\",\"file\":\""
+        + func.getLocation().getFile().getName() + "\",\"line\":\""
+        + func.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Interface function.
- * Output: interface_func|interface|name|visibility|mutability|params|file:line
+ * Output: JSON with type, interface, name, visibility, mutability, params, file, line
  */
 string formatInterfaceFunction(Solidity::FunctionDefinition func) {
   exists(Solidity::InterfaceDeclaration iface, string visibility, string mutability, int params |
@@ -135,67 +137,72 @@ string formatInterfaceFunction(Solidity::FunctionDefinition func) {
     mutability = getFunctionMutability(func) and
     params = getParamCount(func) and
     result =
-      "interface_func|" + getInterfaceName(iface) + "|" + getFunctionName(func) + "|" + visibility +
-        "|" + mutability + "|" + params.toString() + "|" +
-        func.getLocation().getFile().getName() + ":" + func.getLocation().getStartLine().toString()
+      "{\"type\":\"interface_func\",\"interface\":\"" + getInterfaceName(iface) + "\",\"name\":\""
+        + getFunctionName(func) + "\",\"visibility\":\"" + visibility + "\",\"mutability\":\""
+        + mutability + "\",\"params\":\"" + params.toString() + "\",\"file\":\""
+        + func.getLocation().getFile().getName() + "\",\"line\":\""
+        + func.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Event definition with parameters.
- * Output: event|contract|name|param_count|file:line
+ * Output: JSON with type, contract_or_interface, name, param_count, file, line
  */
 string formatEvent(Solidity::EventDefinition event) {
   exists(Solidity::ContractDeclaration contract, int paramCount |
     event.getParent+() = contract and
     paramCount = count(Solidity::EventParameter p | p.getParent() = event) and
     result =
-      "event|" + getContractName(contract) + "|" + event.getName().(Solidity::AstNode).getValue() +
-        "|" + paramCount.toString() + "|" + event.getLocation().getFile().getName() + ":" +
-        event.getLocation().getStartLine().toString()
+      "{\"type\":\"event\",\"contract\":\"" + getContractName(contract) + "\",\"name\":\""
+        + event.getName().(Solidity::AstNode).getValue() + "\",\"param_count\":\""
+        + paramCount.toString() + "\",\"file\":\"" + event.getLocation().getFile().getName()
+        + "\",\"line\":\"" + event.getLocation().getStartLine().toString() + "\"}"
   )
   or
   exists(Solidity::InterfaceDeclaration iface, int paramCount |
     event.getParent+() = iface and
     paramCount = count(Solidity::EventParameter p | p.getParent() = event) and
     result =
-      "event|" + getInterfaceName(iface) + "|" + event.getName().(Solidity::AstNode).getValue() +
-        "|" + paramCount.toString() + "|" + event.getLocation().getFile().getName() + ":" +
-        event.getLocation().getStartLine().toString()
+      "{\"type\":\"event\",\"interface\":\"" + getInterfaceName(iface) + "\",\"name\":\""
+        + event.getName().(Solidity::AstNode).getValue() + "\",\"param_count\":\""
+        + paramCount.toString() + "\",\"file\":\"" + event.getLocation().getFile().getName()
+        + "\",\"line\":\"" + event.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Import statement.
- * Output: import|path|file:line
+ * Output: JSON with type, path, file, line
  */
 string formatImport(Solidity::ImportDirective imp) {
   exists(string path |
     path = imp.getSource().(Solidity::AstNode).getValue() and
     result =
-      "import|" + path + "|" + imp.getLocation().getFile().getName() + ":" +
-        imp.getLocation().getStartLine().toString()
+      "{\"type\":\"import\",\"path\":\"" + path + "\",\"file\":\""
+        + imp.getLocation().getFile().getName() + "\",\"line\":\""
+        + imp.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Inheritance specifier (what a contract inherits from).
- * Output: inherits|contract|base|file:line
+ * Output: JSON with type, contract, base, file, line
  */
 string formatInheritance(Solidity::InheritanceSpecifier spec) {
   exists(Solidity::ContractDeclaration contract, Solidity::Identifier baseId |
     spec.getParent() = contract and
     baseId = spec.getAncestor().getAChild*() and
     result =
-      "inherits|" + getContractName(contract) + "|" + baseId.getValue() + "|" +
-        spec.getLocation().getFile().getName() + ":" +
-        spec.getLocation().getStartLine().toString()
+      "{\"type\":\"inherits\",\"contract\":\"" + getContractName(contract) + "\",\"base\":\""
+        + baseId.getValue() + "\",\"file\":\"" + spec.getLocation().getFile().getName()
+        + "\",\"line\":\"" + spec.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * ERC-20 compliance indicator.
- * Output: erc20_func|contract|name|has_func
+ * Output: JSON with type, contract, name, has_func
  */
 string formatERC20Compliance(Solidity::ContractDeclaration contract) {
   exists(string funcName |
@@ -205,19 +212,22 @@ string formatERC20Compliance(Solidity::ContractDeclaration contract) {
         func.getParent+() = contract and
         getFunctionName(func) = funcName
       ) and
-      result = "erc20_func|" + getContractName(contract) + "|" + funcName + "|true"
+      result = "{\"type\":\"erc20_func\",\"contract\":\"" + getContractName(contract)
+        + "\",\"name\":\"" + funcName + "\",\"has_func\":\"true\"}"
       or
       not exists(Solidity::FunctionDefinition func |
         func.getParent+() = contract and
         getFunctionName(func) = funcName
       ) and
-      result = "erc20_func|" + getContractName(contract) + "|" + funcName + "|false"
+      result = "{\"type\":\"erc20_func\",\"contract\":\"" + getContractName(contract)
+        + "\",\"name\":\"" + funcName + "\",\"has_func\":\"false\"}"
     )
   )
 }
 
 /**
  * ERC-721 compliance indicator.
+ * Output: JSON with type, contract, name, has_func
  */
 string formatERC721Compliance(Solidity::ContractDeclaration contract) {
   exists(string funcName |
@@ -227,19 +237,22 @@ string formatERC721Compliance(Solidity::ContractDeclaration contract) {
         func.getParent+() = contract and
         getFunctionName(func) = funcName
       ) and
-      result = "erc721_func|" + getContractName(contract) + "|" + funcName + "|true"
+      result = "{\"type\":\"erc721_func\",\"contract\":\"" + getContractName(contract)
+        + "\",\"name\":\"" + funcName + "\",\"has_func\":\"true\"}"
       or
       not exists(Solidity::FunctionDefinition func |
         func.getParent+() = contract and
         getFunctionName(func) = funcName
       ) and
-      result = "erc721_func|" + getContractName(contract) + "|" + funcName + "|false"
+      result = "{\"type\":\"erc721_func\",\"contract\":\"" + getContractName(contract)
+        + "\",\"name\":\"" + funcName + "\",\"has_func\":\"false\"}"
     )
   )
 }
 
 /**
  * ERC-1155 compliance indicator.
+ * Output: JSON with type, contract, name, has_func
  */
 string formatERC1155Compliance(Solidity::ContractDeclaration contract) {
   exists(string funcName |
@@ -249,13 +262,15 @@ string formatERC1155Compliance(Solidity::ContractDeclaration contract) {
         func.getParent+() = contract and
         getFunctionName(func) = funcName
       ) and
-      result = "erc1155_func|" + getContractName(contract) + "|" + funcName + "|true"
+      result = "{\"type\":\"erc1155_func\",\"contract\":\"" + getContractName(contract)
+        + "\",\"name\":\"" + funcName + "\",\"has_func\":\"true\"}"
       or
       not exists(Solidity::FunctionDefinition func |
         func.getParent+() = contract and
         getFunctionName(func) = funcName
       ) and
-      result = "erc1155_func|" + getContractName(contract) + "|" + funcName + "|false"
+      result = "{\"type\":\"erc1155_func\",\"contract\":\"" + getContractName(contract)
+        + "\",\"name\":\"" + funcName + "\",\"has_func\":\"false\"}"
     )
   )
 }

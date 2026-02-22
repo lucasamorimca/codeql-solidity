@@ -86,23 +86,29 @@ string formatTarget(
 
 /**
  * Main query: resolved calls with full context.
- * Output format: callerContract.callerFunc -> targetContract.targetFunc (callType)
+ * Output format: JSON with caller, target, callType
  */
-from
+string formatCallGraphEntry(
   Solidity::CallExpression call,
   Solidity::FunctionDefinition callerFunc,
   Solidity::FunctionDefinition targetFunc,
   Solidity::ContractDeclaration callerContract,
   Solidity::ContractDeclaration targetContract,
   string callType
-where
+) {
   CallResolution::resolveCall(call, targetFunc) and
   callerFunc = getEnclosingFunction(call) and
   callerContract = getEnclosingContract(callerFunc) and
   targetContract = getEnclosingContract(targetFunc) and
-  callType = getCallType(call, targetFunc)
-select call,
-  getContractName(callerContract) + "." + getFunctionName(callerFunc) + " (" +
-    callerFunc.getLocation().getFile().getName() + ":" +
-    callerFunc.getLocation().getStartLine().toString() + ") -> " +
-    formatTarget(targetFunc, targetContract, callType) + " [" + callType + "]"
+  callType = getCallType(call, targetFunc) and
+  result =
+    "{\"type\":\"call_graph\",\"caller\":\"" + getContractName(callerContract) + "." + getFunctionName(callerFunc) +
+    "\",\"caller_location\":\"" + callerFunc.getLocation().getFile().getName() + ":" +
+    callerFunc.getLocation().getStartLine().toString() +
+    "\",\"target\":\"" + formatTarget(targetFunc, targetContract, callType) +
+    "\",\"call_type\":\"" + callType + "\"}"
+}
+
+from string info
+where info = formatCallGraphEntry(_, _, _, _, _, _)
+select info, info

@@ -29,7 +29,7 @@ string getFunctionName(Solidity::FunctionDefinition func) {
 
 /**
  * Detects division operations (precision loss risk).
- * Output: division|contract|function|file:line
+ * Output: JSON with type, contract, function, file, line
  */
 string formatDivision(Solidity::BinaryExpression expr) {
   expr.getOperator().(Solidity::AstNode).getValue() = "/" and
@@ -37,14 +37,15 @@ string formatDivision(Solidity::BinaryExpression expr) {
     expr.getParent+() = func and
     func.getParent+() = contract and
     result =
-      "division|" + getContractName(contract) + "|" + getFunctionName(func) + "|" +
-        expr.getLocation().getFile().getName() + ":" +
-        expr.getLocation().getStartLine().toString()
+      "{\"type\":\"division\",\"contract\":\"" + getContractName(contract) + "\",\"function\":\""
+        + getFunctionName(func) + "\",\"file\":\"" + expr.getLocation().getFile().getName()
+        + "\",\"line\":\"" + expr.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Detects multiplication operations.
+ * Output: JSON with type, contract, function, file, line
  */
 string formatMultiplication(Solidity::BinaryExpression expr) {
   expr.getOperator().(Solidity::AstNode).getValue() = "*" and
@@ -52,14 +53,16 @@ string formatMultiplication(Solidity::BinaryExpression expr) {
     expr.getParent+() = func and
     func.getParent+() = contract and
     result =
-      "multiplication|" + getContractName(contract) + "|" + getFunctionName(func) + "|" +
-        expr.getLocation().getFile().getName() + ":" +
-        expr.getLocation().getStartLine().toString()
+      "{\"type\":\"multiplication\",\"contract\":\"" + getContractName(contract)
+        + "\",\"function\":\"" + getFunctionName(func) + "\",\"file\":\""
+        + expr.getLocation().getFile().getName() + "\",\"line\":\""
+        + expr.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Detects modulo operations (remainder calculations).
+ * Output: JSON with type, contract, function, file, line
  */
 string formatModulo(Solidity::BinaryExpression expr) {
   expr.getOperator().(Solidity::AstNode).getValue() = "%" and
@@ -67,15 +70,15 @@ string formatModulo(Solidity::BinaryExpression expr) {
     expr.getParent+() = func and
     func.getParent+() = contract and
     result =
-      "modulo|" + getContractName(contract) + "|" + getFunctionName(func) + "|" +
-        expr.getLocation().getFile().getName() + ":" +
-        expr.getLocation().getStartLine().toString()
+      "{\"type\":\"modulo\",\"contract\":\"" + getContractName(contract) + "\",\"function\":\""
+        + getFunctionName(func) + "\",\"file\":\"" + expr.getLocation().getFile().getName()
+        + "\",\"line\":\"" + expr.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Detects fee-related state variables.
- * Output: fee_var|contract|name|type|file:line
+ * Output: JSON with type, contract, name, type, file, line
  */
 string formatFeeVariable(Solidity::StateVariableDeclaration var) {
   exists(Solidity::ContractDeclaration contract, string varName |
@@ -90,15 +93,16 @@ string formatFeeVariable(Solidity::StateVariableDeclaration var) {
       varName.toLowerCase().matches("%bps%")
     ) and
     result =
-      "fee_var|" + getContractName(contract) + "|" + varName + "|" +
-        var.getType().(Solidity::AstNode).toString() + "|" +
-        var.getLocation().getFile().getName() + ":" + var.getLocation().getStartLine().toString()
+      "{\"type\":\"fee_var\",\"contract\":\"" + getContractName(contract) + "\",\"name\":\""
+        + varName + "\",\"type\":\"" + var.getType().(Solidity::AstNode).toString()
+        + "\",\"file\":\"" + var.getLocation().getFile().getName() + "\",\"line\":\""
+        + var.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Detects balance/amount state variables (double accounting candidates).
- * Output: balance_var|contract|name|type|file:line
+ * Output: JSON with type, contract, name, type, file, line
  */
 string formatBalanceVariable(Solidity::StateVariableDeclaration var) {
   exists(Solidity::ContractDeclaration contract, string varName |
@@ -113,15 +117,16 @@ string formatBalanceVariable(Solidity::StateVariableDeclaration var) {
       varName.toLowerCase().matches("%liquidity%")
     ) and
     result =
-      "balance_var|" + getContractName(contract) + "|" + varName + "|" +
-        var.getType().(Solidity::AstNode).toString() + "|" +
-        var.getLocation().getFile().getName() + ":" + var.getLocation().getStartLine().toString()
+      "{\"type\":\"balance_var\",\"contract\":\"" + getContractName(contract) + "\",\"name\":\""
+        + varName + "\",\"type\":\"" + var.getType().(Solidity::AstNode).toString()
+        + "\",\"file\":\"" + var.getLocation().getFile().getName() + "\",\"line\":\""
+        + var.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Detects state variable assignments in functions.
- * Output: state_write|contract|function|variable|file:line
+ * Output: JSON with type, contract, function, variable, file, line
  */
 string formatStateWrite(Solidity::AssignmentExpression assign) {
   exists(
@@ -134,30 +139,31 @@ string formatStateWrite(Solidity::AssignmentExpression assign) {
     sv.getParent+() = contract and
     sv.getName().(Solidity::AstNode).getValue() = id.getValue() and
     result =
-      "state_write|" + getContractName(contract) + "|" + getFunctionName(func) + "|" +
-        id.getValue() + "|" + assign.getLocation().getFile().getName() + ":" +
-        assign.getLocation().getStartLine().toString()
+      "{\"type\":\"state_write\",\"contract\":\"" + getContractName(contract) + "\",\"function\":\""
+        + getFunctionName(func) + "\",\"variable\":\"" + id.getValue() + "\",\"file\":\""
+        + assign.getLocation().getFile().getName() + "\",\"line\":\""
+        + assign.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Detects unchecked blocks (potential overflow in Solidity 0.8+).
- * Output: unchecked|contract|function|file:line
+ * Output: JSON with type, contract, function, file, line
  */
 string formatUncheckedBlock(Solidity::Unchecked block) {
   exists(Solidity::FunctionDefinition func, Solidity::ContractDeclaration contract |
     block.getParent+() = func and
     func.getParent+() = contract and
     result =
-      "unchecked|" + getContractName(contract) + "|" + getFunctionName(func) + "|" +
-        block.getLocation().getFile().getName() + ":" +
-        block.getLocation().getStartLine().toString()
+      "{\"type\":\"unchecked\",\"contract\":\"" + getContractName(contract) + "\",\"function\":\""
+        + getFunctionName(func) + "\",\"file\":\"" + block.getLocation().getFile().getName()
+        + "\",\"line\":\"" + block.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Detects magic numbers (literal values that may need constants).
- * Output: magic_number|contract|function|value|file:line
+ * Output: JSON with type, contract, function, value, file, line
  */
 string formatMagicNumber(Solidity::NumberLiteral literal) {
   exists(Solidity::FunctionDefinition func, Solidity::ContractDeclaration contract, string value |
@@ -176,16 +182,17 @@ string formatMagicNumber(Solidity::NumberLiteral literal) {
       value.matches("%000%")
     ) and
     result =
-      "magic_number|" + getContractName(contract) + "|" + getFunctionName(func) + "|" + value +
-        "|" + literal.getLocation().getFile().getName() + ":" +
-        literal.getLocation().getStartLine().toString()
+      "{\"type\":\"magic_number\",\"contract\":\"" + getContractName(contract)
+        + "\",\"function\":\"" + getFunctionName(func) + "\",\"value\":\"" + value
+        + "\",\"file\":\"" + literal.getLocation().getFile().getName() + "\",\"line\":\""
+        + literal.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Detects potential rounding direction issues (division before multiplication).
  * This is a heuristic - division followed by multiplication in same expression.
- * Output: rounding_risk|contract|function|file:line
+ * Output: JSON with type, contract, function, file, line
  */
 string formatRoundingRisk(Solidity::BinaryExpression multExpr) {
   multExpr.getOperator().(Solidity::AstNode).getValue() = "*" and
@@ -198,15 +205,16 @@ string formatRoundingRisk(Solidity::BinaryExpression multExpr) {
     multExpr.getParent+() = func and
     func.getParent+() = contract and
     result =
-      "rounding_risk|" + getContractName(contract) + "|" + getFunctionName(func) + "|" +
-        multExpr.getLocation().getFile().getName() + ":" +
-        multExpr.getLocation().getStartLine().toString()
+      "{\"type\":\"rounding_risk\",\"contract\":\"" + getContractName(contract)
+        + "\",\"function\":\"" + getFunctionName(func) + "\",\"file\":\""
+        + multExpr.getLocation().getFile().getName() + "\",\"line\":\""
+        + multExpr.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Detects price/oracle related variables.
- * Output: price_var|contract|name|file:line
+ * Output: JSON with type, contract, name, file, line
  */
 string formatPriceVariable(Solidity::StateVariableDeclaration var) {
   exists(Solidity::ContractDeclaration contract, string varName |
@@ -219,8 +227,9 @@ string formatPriceVariable(Solidity::StateVariableDeclaration var) {
       varName.toLowerCase().matches("%exchange%")
     ) and
     result =
-      "price_var|" + getContractName(contract) + "|" + varName + "|" +
-        var.getLocation().getFile().getName() + ":" + var.getLocation().getStartLine().toString()
+      "{\"type\":\"price_var\",\"contract\":\"" + getContractName(contract) + "\",\"name\":\""
+        + varName + "\",\"file\":\"" + var.getLocation().getFile().getName() + "\",\"line\":\""
+        + var.getLocation().getStartLine().toString() + "\"}"
   )
 }
 

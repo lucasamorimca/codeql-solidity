@@ -58,6 +58,7 @@ string getCallTargetString(Solidity::CallExpression call) {
 
 /**
  * Unresolved calls (not builtin, not resolvable).
+ * Output: JSON with caller, target, file, line
  */
 from
   Solidity::CallExpression call,
@@ -70,6 +71,7 @@ where
   callerContract = getEnclosingContract(callerFunc) and
   targetName = getCallTargetString(call)
 select call,
-  getContractName(callerContract) + "." + getFunctionName(callerFunc) + " -> [UNRESOLVED: " +
-    targetName + "] at " + call.getLocation().getFile().getName() + ":" +
-    call.getLocation().getStartLine().toString()
+  "{\"caller\":\"" + getContractName(callerContract) + "." + getFunctionName(callerFunc)
+    + "\",\"target\":\"[UNRESOLVED: " + targetName + "]\",\"file\":\""
+    + call.getLocation().getFile().getName() + "\",\"line\":\""
+    + call.getLocation().getStartLine().toString() + "\"}"

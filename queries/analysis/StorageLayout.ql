@@ -159,7 +159,7 @@ int getTypeSize(string typeStr) {
 
 /**
  * State variable storage information.
- * Output: storage|contract|name|type|visibility|is_constant|is_immutable|size|file:line
+ * Output: JSON with type, contract, name, type, visibility, is_constant, is_immutable, size, file, line
  */
 string formatStateVariable(Solidity::StateVariableDeclaration var) {
   exists(
@@ -174,15 +174,17 @@ string formatStateVariable(Solidity::StateVariableDeclaration var) {
     (if isImmutable(var) then isImm = "true" else isImm = "false") and
     size = getTypeSize(varType) and
     result =
-      "storage|" + getContractName(contract) + "|" + varName + "|" + varType + "|" + visibility +
-        "|" + isConst + "|" + isImm + "|" + size.toString() + "|" +
-        var.getLocation().getFile().getName() + ":" + var.getLocation().getStartLine().toString()
+      "{\"type\":\"storage\",\"contract\":\"" + getContractName(contract) + "\",\"name\":\"" + varName
+        + "\",\"type\":\"" + varType + "\",\"visibility\":\"" + visibility + "\",\"is_constant\":\""
+        + isConst + "\",\"is_immutable\":\"" + isImm + "\",\"size\":\"" + size.toString()
+        + "\",\"file\":\"" + var.getLocation().getFile().getName() + "\",\"line\":\""
+        + var.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Detects storage gaps for upgradeability.
- * Output: gap|contract|name|type|size|file:line
+ * Output: JSON with type, contract, name, type, file, line
  */
 string formatStorageGap(Solidity::StateVariableDeclaration var) {
   exists(Solidity::ContractDeclaration contract, string varName, string varType |
@@ -196,14 +198,16 @@ string formatStorageGap(Solidity::StateVariableDeclaration var) {
     ) and
     varType.matches("%[%]%") and
     result =
-      "gap|" + getContractName(contract) + "|" + varName + "|" + varType + "|" +
-        var.getLocation().getFile().getName() + ":" + var.getLocation().getStartLine().toString()
+      "{\"type\":\"gap\",\"contract\":\"" + getContractName(contract) + "\",\"name\":\"" + varName
+        + "\",\"type\":\"" + varType + "\",\"file\":\""
+        + var.getLocation().getFile().getName() + "\",\"line\":\""
+        + var.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Contract storage summary.
- * Output: summary|contract|total_vars|constant_count|immutable_count|file:line
+ * Output: JSON with type, contract, total_vars, constant_count, immutable_count, file, line
  */
 string formatContractStorageSummary(Solidity::ContractDeclaration contract) {
   exists(int totalVars, int constCount, int immCount |
@@ -214,10 +218,11 @@ string formatContractStorageSummary(Solidity::ContractDeclaration contract) {
     constCount = count(Solidity::StateVariableDeclaration v | v.getParent+() = contract and isConstant(v)) and
     immCount = count(Solidity::StateVariableDeclaration v | v.getParent+() = contract and isImmutable(v)) and
     result =
-      "summary|" + getContractName(contract) + "|" + totalVars.toString() + "|" +
-        constCount.toString() + "|" + immCount.toString() + "|" +
-        contract.getLocation().getFile().getName() + ":" +
-        contract.getLocation().getStartLine().toString()
+      "{\"type\":\"summary\",\"contract\":\"" + getContractName(contract) + "\",\"total_vars\":\""
+        + totalVars.toString() + "\",\"constant_count\":\"" + constCount.toString()
+        + "\",\"immutable_count\":\"" + immCount.toString() + "\",\"file\":\""
+        + contract.getLocation().getFile().getName() + "\",\"line\":\""
+        + contract.getLocation().getStartLine().toString() + "\"}"
   )
 }
 

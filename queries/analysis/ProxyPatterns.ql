@@ -45,7 +45,7 @@ string getInterfaceName(Solidity::InterfaceDeclaration iface) {
 
 /**
  * Detects using-for directives.
- * Output: using_for|contract|library|applied_to|file:line
+ * Output: JSON with type, contract, library, applied_to, file, line
  */
 string formatUsingFor(Solidity::UsingDirective using) {
   exists(Solidity::ContractDeclaration contract, string libName, string appliedTo |
@@ -73,28 +73,30 @@ string formatUsingFor(Solidity::UsingDirective using) {
       appliedTo = "*"
     ) and
     result =
-      "using_for|" + getContractName(contract) + "|" + libName + "|" + appliedTo + "|" +
-        using.getLocation().getFile().getName() + ":" +
-        using.getLocation().getStartLine().toString()
+      "{\"type\":\"using_for\",\"contract\":\"" + getContractName(contract) + "\",\"library\":\""
+        + libName + "\",\"applied_to\":\"" + appliedTo + "\",\"file\":\""
+        + using.getLocation().getFile().getName() + "\",\"line\":\""
+        + using.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Detects library definitions.
- * Output: library|name|function_count|file:line
+ * Output: JSON with type, name, function_count, file, line
  */
 string formatLibrary(Solidity::LibraryDeclaration lib) {
   exists(int funcCount |
     funcCount = count(Solidity::FunctionDefinition f | f.getParent+() = lib) and
     result =
-      "library|" + getLibraryName(lib) + "|" + funcCount.toString() + "|" +
-        lib.getLocation().getFile().getName() + ":" + lib.getLocation().getStartLine().toString()
+      "{\"type\":\"library\",\"name\":\"" + getLibraryName(lib) + "\",\"function_count\":\""
+        + funcCount.toString() + "\",\"file\":\"" + lib.getLocation().getFile().getName()
+        + "\",\"line\":\"" + lib.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Detects delegatecall operations.
- * Output: delegatecall|contract|function|file:line
+ * Output: JSON with type, contract, function, file, line
  */
 string formatDelegatecall(Solidity::CallExpression call) {
   ExternalCalls::isDelegateCall(call) and
@@ -102,15 +104,15 @@ string formatDelegatecall(Solidity::CallExpression call) {
     call.getParent+() = func and
     func.getParent+() = contract and
     result =
-      "delegatecall|" + getContractName(contract) + "|" + getFunctionName(func) + "|" +
-        call.getLocation().getFile().getName() + ":" +
-        call.getLocation().getStartLine().toString()
+      "{\"type\":\"delegatecall\",\"contract\":\"" + getContractName(contract) + "\",\"function\":\""
+        + getFunctionName(func) + "\",\"file\":\"" + call.getLocation().getFile().getName()
+        + "\",\"line\":\"" + call.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Detects implementation address state variables.
- * Output: impl_slot|contract|variable|type|file:line
+ * Output: JSON with type, contract, variable, type, file, line
  */
 string formatImplementationSlot(Solidity::StateVariableDeclaration var) {
   exists(Solidity::ContractDeclaration contract, string varName, string varType |
@@ -125,14 +127,16 @@ string formatImplementationSlot(Solidity::StateVariableDeclaration var) {
     ) and
     varType.toLowerCase().matches("%address%") and
     result =
-      "impl_slot|" + getContractName(contract) + "|" + varName + "|" + varType + "|" +
-        var.getLocation().getFile().getName() + ":" + var.getLocation().getStartLine().toString()
+      "{\"type\":\"impl_slot\",\"contract\":\"" + getContractName(contract) + "\",\"variable\":\""
+        + varName + "\",\"type\":\"" + varType + "\",\"file\":\""
+        + var.getLocation().getFile().getName() + "\",\"line\":\""
+        + var.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Detects EIP-1967 implementation slot usage.
- * Output: eip1967|contract|slot_type|file:line
+ * Output: JSON with type, contract, slot_type, file, line
  */
 string formatEIP1967Slot(Solidity::AstNode node) {
   exists(Solidity::ContractDeclaration contract, string slotType |
@@ -154,15 +158,15 @@ string formatEIP1967Slot(Solidity::AstNode node) {
       slotType = "beacon"
     ) and
     result =
-      "eip1967|" + getContractName(contract) + "|" + slotType + "|" +
-        node.getLocation().getFile().getName() + ":" +
-        node.getLocation().getStartLine().toString()
+      "{\"type\":\"eip1967\",\"contract\":\"" + getContractName(contract) + "\",\"slot_type\":\""
+        + slotType + "\",\"file\":\"" + node.getLocation().getFile().getName()
+        + "\",\"line\":\"" + node.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Detects proxy patterns based on inheritance.
- * Output: proxy_pattern|contract|pattern_type|inherited_from|file:line
+ * Output: JSON with type, contract, pattern_type, inherited_from, file, line
  */
 string formatProxyPattern(Solidity::ContractDeclaration contract) {
   exists(Solidity::ContractDeclaration base, string patternType |
@@ -187,15 +191,16 @@ string formatProxyPattern(Solidity::ContractDeclaration contract) {
       patternType = "Generic Proxy"
     ) and
     result =
-      "proxy_pattern|" + getContractName(contract) + "|" + patternType + "|" +
-        getContractName(base) + "|" + contract.getLocation().getFile().getName() + ":" +
-        contract.getLocation().getStartLine().toString()
+      "{\"type\":\"proxy_pattern\",\"contract\":\"" + getContractName(contract)
+        + "\",\"pattern_type\":\"" + patternType + "\",\"inherited_from\":\""
+        + getContractName(base) + "\",\"file\":\"" + contract.getLocation().getFile().getName()
+        + "\",\"line\":\"" + contract.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Detects diamond/facet patterns.
- * Output: diamond|contract|indicator|file:line
+ * Output: JSON with type, contract, indicator, file, line
  */
 string formatDiamondPattern(Solidity::ContractDeclaration contract) {
   (
@@ -203,9 +208,9 @@ string formatDiamondPattern(Solidity::ContractDeclaration contract) {
     getContractName(contract).toLowerCase().matches("%facet%")
   ) and
   result =
-    "diamond|" + getContractName(contract) + "|name_pattern|" +
-      contract.getLocation().getFile().getName() + ":" +
-      contract.getLocation().getStartLine().toString()
+    "{\"type\":\"diamond\",\"contract\":\"" + getContractName(contract) + "\",\"indicator\":\"name_pattern\",\"file\":\""
+      + contract.getLocation().getFile().getName() + "\",\"line\":\""
+      + contract.getLocation().getStartLine().toString() + "\"}"
 }
 
 // Main query

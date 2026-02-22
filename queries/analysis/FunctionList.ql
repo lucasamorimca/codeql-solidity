@@ -150,7 +150,7 @@ int getStateWrites(Solidity::FunctionDefinition func) {
 
 /**
  * Main function information.
- * Output: function|contract|name|visibility|mutability|modifiers|params|state_reads|state_writes|is_entry|is_constructor|file:line
+ * Output: JSON with type, contract, name, visibility, mutability, modifiers, params, state_reads, state_writes, is_entry, is_constructor, file, line
  */
 string formatFunction(Solidity::FunctionDefinition func) {
   exists(
@@ -167,15 +167,19 @@ string formatFunction(Solidity::FunctionDefinition func) {
     (if isEntryPoint(func) then isEntry = "true" else isEntry = "false") and
     (if isConstructor(func) then isCtor = "true" else isCtor = "false") and
     result =
-      "function|" + getContractName(contract) + "|" + getFunctionName(func) + "|" + visibility +
-        "|" + mutability + "|" + modifiers + "|" + params.toString() + "|" + reads.toString() + "|" +
-        writes.toString() + "|" + isEntry + "|" + isCtor + "|" +
-        func.getLocation().getFile().getName() + ":" + func.getLocation().getStartLine().toString()
+      "{\"type\":\"function\",\"contract\":\"" + getContractName(contract) + "\",\"name\":\""
+        + getFunctionName(func) + "\",\"visibility\":\"" + visibility + "\",\"mutability\":\""
+        + mutability + "\",\"modifiers\":\"" + modifiers + "\",\"params\":\"" + params.toString()
+        + "\",\"state_reads\":\"" + reads.toString() + "\",\"state_writes\":\""
+        + writes.toString() + "\",\"is_entry\":\"" + isEntry + "\",\"is_constructor\":\""
+        + isCtor + "\",\"file\":\"" + func.getLocation().getFile().getName() + "\",\"line\":\""
+        + func.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Interface function information.
+ * Output: JSON with type, interface, name, visibility, mutability, file, line
  */
 string formatInterfaceFunction(Solidity::FunctionDefinition func) {
   exists(Solidity::InterfaceDeclaration iface, string visibility, string mutability |
@@ -183,9 +187,11 @@ string formatInterfaceFunction(Solidity::FunctionDefinition func) {
     visibility = getFunctionVisibility(func) and
     mutability = getFunctionMutability(func) and
     result =
-      "interface_func|" + iface.getName().(Solidity::AstNode).getValue() + "|" +
-        getFunctionName(func) + "|" + visibility + "|" + mutability + "|" +
-        func.getLocation().getFile().getName() + ":" + func.getLocation().getStartLine().toString()
+      "{\"type\":\"interface_func\",\"interface\":\"" + iface.getName().(Solidity::AstNode).getValue()
+        + "\",\"name\":\"" + getFunctionName(func) + "\",\"visibility\":\"" + visibility
+        + "\",\"mutability\":\"" + mutability + "\",\"file\":\""
+        + func.getLocation().getFile().getName() + "\",\"line\":\""
+        + func.getLocation().getStartLine().toString() + "\"}"
   )
 }
 

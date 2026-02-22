@@ -119,7 +119,7 @@ string getHighestRisk(string ops) {
 
 /**
  * Assembly block information.
- * Output: assembly|contract|function|operations|risk_level|file:line
+ * Output: JSON with type, contract, function, operations, risk_level, file, line
  */
 string formatAssemblyBlock(AssemblyBlock asm) {
   exists(
@@ -140,15 +140,16 @@ string formatAssemblyBlock(AssemblyBlock asm) {
       ops = "" and risk = "low"
     ) and
     result =
-      "assembly|" + getContractName(contract) + "|" + getFunctionName(func) + "|" + ops + "|" +
-        risk + "|" + asm.getLocation().getFile().getName() + ":" +
-        asm.getLocation().getStartLine().toString()
+      "{\"type\":\"assembly\",\"contract\":\"" + getContractName(contract) + "\",\"function\":\""
+        + getFunctionName(func) + "\",\"operations\":\"" + ops + "\",\"risk_level\":\"" + risk
+        + "\",\"file\":\"" + asm.getLocation().getFile().getName() + "\",\"line\":\""
+        + asm.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Storage operations in assembly.
- * Output: storage_op|contract|function|operation|file:line
+ * Output: JSON with type, contract, function, operation, file, line
  */
 string formatStorageOp(AssemblyBlock asm) {
   exists(Solidity::ContractDeclaration contract, Solidity::FunctionDefinition func, string op |
@@ -157,14 +158,16 @@ string formatStorageOp(AssemblyBlock asm) {
     op in ["sstore", "sload"] and
     assemblyContainsOp(asm, op) and
     result =
-      "storage_op|" + getContractName(contract) + "|" + getFunctionName(func) + "|" + op + "|" +
-        asm.getLocation().getFile().getName() + ":" + asm.getLocation().getStartLine().toString()
+      "{\"type\":\"storage_op\",\"contract\":\"" + getContractName(contract) + "\",\"function\":\""
+        + getFunctionName(func) + "\",\"operation\":\"" + op + "\",\"file\":\""
+        + asm.getLocation().getFile().getName() + "\",\"line\":\""
+        + asm.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * External calls in assembly.
- * Output: asm_call|contract|function|call_type|file:line
+ * Output: JSON with type, contract, function, call_type, file, line
  */
 string formatAsmExternalCall(AssemblyBlock asm) {
   exists(
@@ -175,14 +178,16 @@ string formatAsmExternalCall(AssemblyBlock asm) {
     callType in ["call", "delegatecall", "staticcall"] and
     assemblyContainsOp(asm, callType) and
     result =
-      "asm_call|" + getContractName(contract) + "|" + getFunctionName(func) + "|" + callType + "|" +
-        asm.getLocation().getFile().getName() + ":" + asm.getLocation().getStartLine().toString()
+      "{\"type\":\"asm_call\",\"contract\":\"" + getContractName(contract) + "\",\"function\":\""
+        + getFunctionName(func) + "\",\"call_type\":\"" + callType + "\",\"file\":\""
+        + asm.getLocation().getFile().getName() + "\",\"line\":\""
+        + asm.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Critical operations (selfdestruct, delegatecall).
- * Output: critical|contract|function|operation|file:line
+ * Output: JSON with type, contract, function, operation, file, line
  */
 string formatCriticalOp(AssemblyBlock asm) {
   exists(Solidity::ContractDeclaration contract, Solidity::FunctionDefinition func, string op |
@@ -191,14 +196,16 @@ string formatCriticalOp(AssemblyBlock asm) {
     op in ["selfdestruct", "delegatecall"] and
     assemblyContainsOp(asm, op) and
     result =
-      "critical|" + getContractName(contract) + "|" + getFunctionName(func) + "|" + op + "|" +
-        asm.getLocation().getFile().getName() + ":" + asm.getLocation().getStartLine().toString()
+      "{\"type\":\"critical\",\"contract\":\"" + getContractName(contract) + "\",\"function\":\""
+        + getFunctionName(func) + "\",\"operation\":\"" + op + "\",\"file\":\""
+        + asm.getLocation().getFile().getName() + "\",\"line\":\""
+        + asm.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Contract creation in assembly.
- * Output: create|contract|function|create_type|file:line
+ * Output: JSON with type, contract, function, create_type, file, line
  */
 string formatCreateOp(AssemblyBlock asm) {
   exists(
@@ -209,8 +216,10 @@ string formatCreateOp(AssemblyBlock asm) {
     createType in ["create", "create2"] and
     assemblyContainsOp(asm, createType) and
     result =
-      "create|" + getContractName(contract) + "|" + getFunctionName(func) + "|" + createType + "|" +
-        asm.getLocation().getFile().getName() + ":" + asm.getLocation().getStartLine().toString()
+      "{\"type\":\"create\",\"contract\":\"" + getContractName(contract) + "\",\"function\":\""
+        + getFunctionName(func) + "\",\"create_type\":\"" + createType + "\",\"file\":\""
+        + asm.getLocation().getFile().getName() + "\",\"line\":\""
+        + asm.getLocation().getStartLine().toString() + "\"}"
   )
 }
 

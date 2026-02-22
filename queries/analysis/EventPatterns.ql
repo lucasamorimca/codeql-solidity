@@ -28,23 +28,23 @@ string getFunctionName(Solidity::FunctionDefinition func) {
 
 /**
  * Event definition.
- * Output: event_def|contract|name|param_count|file:line
+ * Output: JSON with type, contract, name, param_count, file, line
  */
 string formatEventDefinition(Solidity::EventDefinition event) {
   exists(Solidity::ContractDeclaration contract, int paramCount |
     event.getParent+() = contract and
     paramCount = count(Solidity::EventParameter p | p.getParent() = event) and
     result =
-      "event_def|" + getContractName(contract) + "|" +
-        event.getName().(Solidity::AstNode).getValue() + "|" + paramCount.toString() + "|" +
-        event.getLocation().getFile().getName() + ":" +
-        event.getLocation().getStartLine().toString()
+      "{\"type\":\"event_def\",\"contract\":\"" + getContractName(contract) + "\",\"name\":\""
+        + event.getName().(Solidity::AstNode).getValue() + "\",\"param_count\":\""
+        + paramCount.toString() + "\",\"file\":\"" + event.getLocation().getFile().getName()
+        + "\",\"line\":\"" + event.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Event emission (emit statement).
- * Output: event_emit|contract|function|event_name|file:line
+ * Output: JSON with type, contract, function, event_name, file, line
  */
 string formatEventEmission(Solidity::EmitStatement emit) {
   exists(
@@ -56,15 +56,16 @@ string formatEventEmission(Solidity::EmitStatement emit) {
     call = emit.getAChild() and
     eventName = call.getFunction().(Solidity::Identifier).getValue() and
     result =
-      "event_emit|" + getContractName(contract) + "|" + getFunctionName(func) + "|" + eventName +
-        "|" + emit.getLocation().getFile().getName() + ":" +
-        emit.getLocation().getStartLine().toString()
+      "{\"type\":\"event_emit\",\"contract\":\"" + getContractName(contract) + "\",\"function\":\""
+        + getFunctionName(func) + "\",\"event_name\":\"" + eventName + "\",\"file\":\""
+        + emit.getLocation().getFile().getName() + "\",\"line\":\""
+        + emit.getLocation().getStartLine().toString() + "\"}"
   )
 }
 
 /**
  * Functions that modify state but don't emit events.
- * Output: no_event|contract|function|state_writes|file:line
+ * Output: JSON with type, contract, function, state_writes, file, line
  */
 string formatNoEventFunction(Solidity::FunctionDefinition func) {
   exists(Solidity::ContractDeclaration contract, int stateWrites |
@@ -91,9 +92,10 @@ string formatNoEventFunction(Solidity::FunctionDefinition func) {
       vis.getAChild().getValue() in ["external", "public"]
     ) and
     result =
-      "no_event|" + getContractName(contract) + "|" + getFunctionName(func) + "|" +
-        stateWrites.toString() + "|" + func.getLocation().getFile().getName() + ":" +
-        func.getLocation().getStartLine().toString()
+      "{\"type\":\"no_event\",\"contract\":\"" + getContractName(contract) + "\",\"function\":\""
+        + getFunctionName(func) + "\",\"state_writes\":\"" + stateWrites.toString()
+        + "\",\"file\":\"" + func.getLocation().getFile().getName() + "\",\"line\":\""
+        + func.getLocation().getStartLine().toString() + "\"}"
   )
 }
 

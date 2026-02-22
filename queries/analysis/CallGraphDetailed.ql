@@ -60,8 +60,8 @@ string getCallType(Solidity::CallExpression call, Solidity::FunctionDefinition t
 }
 
 /**
- * Detailed query with pipe-separated output for easy CSV conversion.
- * Format: caller_contract|caller_func|target_contract|target_func|call_type|file:line
+ * Detailed query with JSON output.
+ * Output: JSON with caller_contract, caller_func, caller_file, caller_line, target_contract, target_func, target_file, target_line, call_type
  */
 from
   Solidity::CallExpression call,
@@ -77,9 +77,11 @@ where
   targetContract = getEnclosingContract(targetFunc) and
   callType = getCallType(call, targetFunc)
 select call,
-  getContractName(callerContract) + "|" + getFunctionName(callerFunc) + "|" +
-    callerFunc.getLocation().getFile().getName() + ":" +
-    callerFunc.getLocation().getStartLine().toString() + "|" +
-    getContractName(targetContract) + "|" + getFunctionName(targetFunc) + "|" +
-    targetFunc.getLocation().getFile().getName() + ":" +
-    targetFunc.getLocation().getStartLine().toString() + "|" + callType
+  "{\"caller_contract\":\"" + getContractName(callerContract) + "\",\"caller_func\":\""
+    + getFunctionName(callerFunc) + "\",\"caller_file\":\""
+    + callerFunc.getLocation().getFile().getName() + "\",\"caller_line\":\""
+    + callerFunc.getLocation().getStartLine().toString() + "\",\"target_contract\":\""
+    + getContractName(targetContract) + "\",\"target_func\":\"" + getFunctionName(targetFunc)
+    + "\",\"target_file\":\"" + targetFunc.getLocation().getFile().getName()
+    + "\",\"target_line\":\"" + targetFunc.getLocation().getStartLine().toString()
+    + "\",\"call_type\":\"" + callType + "\"}"
