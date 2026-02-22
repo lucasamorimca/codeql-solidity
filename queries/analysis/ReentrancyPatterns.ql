@@ -26,15 +26,23 @@ string getFunctionName(Solidity::FunctionDefinition func) {
   result = func.getName().(Solidity::AstNode).getValue()
 }
 
+/** Gets the modifier name from a ModifierInvocation. */
+string getModifierName(Solidity::ModifierInvocation mod) {
+  exists(Solidity::Identifier id |
+    id = mod.getAChild*() and
+    result = id.getValue()
+  )
+}
+
 /** Holds if a function has a reentrancy guard modifier. */
 predicate hasReentrancyGuard(Solidity::FunctionDefinition func) {
   exists(Solidity::ModifierInvocation mod |
     mod.getParent() = func and
     (
-      mod.getValue().toLowerCase().matches("%nonreentrant%") or
-      mod.getValue().toLowerCase().matches("%lock%") or
-      mod.getValue().toLowerCase().matches("%mutex%") or
-      mod.getValue().toLowerCase().matches("%guard%")
+      getModifierName(mod).toLowerCase().matches("%nonreentrant%") or
+      getModifierName(mod).toLowerCase().matches("%lock%") or
+      getModifierName(mod).toLowerCase().matches("%mutex%") or
+      getModifierName(mod).toLowerCase().matches("%guard%")
     )
   )
 }
